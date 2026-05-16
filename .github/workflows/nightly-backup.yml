@@ -1,0 +1,44 @@
+name: Nightly DB Backup
+
+on:
+  schedule:
+    - cron: '30 18 * * *'   # 18:30 UTC = 00:00 IST next day
+  workflow_dispatch:        # allow manual runs from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            > /etc/apt/sources.list.d/pgdg.list'
+          wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Create dump
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          TIMESTAMP=$(TZ=Asia/Kolkata date +'%Y-%m-%d_%H%M_IST')
+          mkdir -p out
+          pg_dump "$SUPABASE_DB_URL" \
+            --schema=public --no-owner --no-acl \
+            | gzip > "out/schollet-backup-${TIMESTAMP}.sql.gz"
+          echo "BACKUP_FILE=out/schollet-backup-${TIMESTAMP}.sql.gz" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install email deps
+        run: npm install nodemailer@7
+
+      - name: Send email
+        env:
+          GMAIL_USER: sunseanurseryschool@gmail.com
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: node scripts/send-backup-email.mjs
