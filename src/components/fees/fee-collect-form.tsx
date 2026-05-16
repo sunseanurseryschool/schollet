@@ -69,6 +69,17 @@ const CURRENT_ACADEMIC_YEAR: string = (() => {
   return `${startYear}-${startYear + 1}`;
 })();
 
+const ACADEMIC_YEAR_OPTIONS: readonly string[] = (() => {
+  const [currentStart] = CURRENT_ACADEMIC_YEAR.split("-").map(Number);
+  const start = currentStart ?? new Date().getFullYear();
+  return [
+    `${start + 1}-${start + 2}`,
+    `${start}-${start + 1}`,
+    `${start - 1}-${start}`,
+    `${start - 2}-${start - 1}`,
+  ];
+})();
+
 // ─── Animated confetti particle ──────────────────────────────────────────────
 
 interface ConfettiParticle {
@@ -267,6 +278,10 @@ export function FeeCollectForm() {
   const [isSearching, setIsSearching] = React.useState(false);
   const [selectedStudent, setSelectedStudent] = React.useState<Student | null>(null);
 
+  // Academic year (defaults to current; user can switch to previous year)
+  const [selectedAcademicYear, setSelectedAcademicYear] =
+    React.useState<string>(CURRENT_ACADEMIC_YEAR);
+
   // Fee config & summary
   const [feeConfig, setFeeConfig] = React.useState<FeeConfigWithHeads | null>(null);
   const [summary, setSummary] = React.useState<FeeSummary | null>(null);
@@ -293,6 +308,7 @@ export function FeeCollectForm() {
       }
     })();
   }, []);
+
   const accountNameById = React.useMemo(
     () => new Map(accounts.map((a) => [a.id, a.name])),
     [accounts],
@@ -391,18 +407,28 @@ export function FeeCollectForm() {
       discount_reason: "",
     });
 
-    await loadStudentData(student);
+    await loadStudentData(student, selectedAcademicYear);
+  }
+
+  function handleAcademicYearChange(year: string) {
+    setSelectedAcademicYear(year);
+    setSuccessReceipt(null);
+    if (selectedStudent) {
+      setFeeConfig(null);
+      setSummary(null);
+      void loadStudentData(selectedStudent, year);
+    }
   }
 
   // ── Load fee config + summary + history after student selection ─────────────
 
-  async function loadStudentData(student: Student) {
+  async function loadStudentData(student: Student, academicYear: string) {
     setIsLoadingConfig(true);
     setIsLoadingHistory(true);
 
     try {
       const cfgParams = new URLSearchParams({
-        academic_year: CURRENT_ACADEMIC_YEAR,
+        academic_year: academicYear,
       });
       const cfgRes = await fetch(`/api/fee-configs?${cfgParams.toString()}`);
       if (cfgRes.ok) {
@@ -639,7 +665,7 @@ export function FeeCollectForm() {
                 transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
                 className="overflow-hidden"
               >
-                <div className="flex items-start justify-between gap-2 pt-1">
+                <div className="flex items-start justify-between gap-3 pt-1">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-[#2563EB] to-[#3B82F6] text-white font-bold text-sm shrink-0">
                       {selectedStudent.name.charAt(0).toUpperCase()}
@@ -654,16 +680,44 @@ export function FeeCollectForm() {
                       </p>
                     </div>
                   </div>
-                  {isLoadingConfig && (
-                    <span className="text-xs text-text-secondary flex items-center gap-1.5">
-                      <motion.span
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
-                        className="inline-block h-3 w-3 rounded-full border-2 border-brand border-t-transparent"
-                      />
-                      Loading fee data...
-                    </span>
-                  )}
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Label
+                      htmlFor="academic_year"
+                      className="text-[10px] font-semibold uppercase tracking-wide text-text-tertiary"
+                    >
+                      Academic Year
+                    </Label>
+                    <Select
+                      value={selectedAcademicYear}
+                      onValueChange={(val) => {
+                        if (val != null) handleAcademicYearChange(val);
+                      }}
+                    >
+                      <SelectTrigger
+                        id="academic_year"
+                        className="h-8 w-[130px] text-xs"
+                      >
+                        <span>{selectedAcademicYear}</span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ACADEMIC_YEAR_OPTIONS.map((y) => (
+                          <SelectItem key={y} value={y}>
+                            {y}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {isLoadingConfig && (
+                      <span className="text-[10px] text-text-secondary flex items-center gap-1">
+                        <motion.span
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+                          className="inline-block h-2.5 w-2.5 rounded-full border-2 border-brand border-t-transparent"
+                        />
+                        Loading...
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Fee config info */}
@@ -686,7 +740,7 @@ export function FeeCollectForm() {
                     className="mt-2 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800"
                   >
                     No fee configuration found for Grade {selectedStudent.grade} in{" "}
-                    {CURRENT_ACADEMIC_YEAR}. Please set up a fee configuration first.
+                    {selectedAcademicYear}. Please set up a fee configuration first.
                   </motion.div>
                 )}
               </motion.div>
