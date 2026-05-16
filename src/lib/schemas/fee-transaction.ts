@@ -1,16 +1,10 @@
 import { z } from "zod";
 
-export const PAYMENT_MODE_VALUES = [
-  "CASH",
-  "UPI",
-  "BANK_TRANSFER",
-  "CHEQUE",
-] as const;
-
 export const collectFeeSchema = z
   .object({
     student_id: z.string().uuid("Invalid student ID"),
     fee_config_id: z.string().uuid("Invalid fee config ID"),
+    account_id: z.string().uuid("Select a valid account"),
     paid_amount: z
       .number({ message: "Paid amount must be a number" })
       .positive("Paid amount must be greater than zero")
@@ -24,9 +18,6 @@ export const collectFeeSchema = z
       .max(500, "Discount reason must be 500 characters or fewer")
       .trim()
       .optional(),
-    payment_mode: z.enum(PAYMENT_MODE_VALUES, {
-      message: "Select a valid payment mode",
-    }),
     payment_date: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Payment date must be YYYY-MM-DD")

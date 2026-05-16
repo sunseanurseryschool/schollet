@@ -78,18 +78,28 @@ export default async function ReceiptPage(props: {
   const { data: staffRow } = await supabase
     .from("staff")
     .select("name")
-    .eq("user_id", txData.received_by as string)
-    .eq("is_active", true)
+    .eq("id", txData.received_by as string)
     .maybeSingle();
 
   if (staffRow) {
     receivedByName = (staffRow as { name: string }).name;
   }
 
+  // Resolve account name
+  let accountName = "—";
+  const { data: accountRow } = await supabase
+    .from("accounts")
+    .select("name")
+    .eq("id", txData.account_id as string)
+    .maybeSingle();
+  if (accountRow) {
+    accountName = (accountRow as { name: string }).name;
+  }
+
   const receipt: ReceiptData = {
     receipt_no: txData.receipt_no as string,
     payment_date: txData.payment_date as string,
-    payment_mode: txData.payment_mode as ReceiptData["payment_mode"],
+    account_name: accountName,
     paid_amount: Math.round(Number(txData.paid_amount) * 100) / 100,
     discount_amount: Math.round(Number(txData.discount_amount) * 100) / 100,
     discount_reason: txData.discount_reason as string | null,

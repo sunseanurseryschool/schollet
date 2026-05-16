@@ -250,7 +250,7 @@ export function StaffFormDialog({
               animate={open ? "visible" : "hidden"}
               className="grid gap-1.5"
             >
-              <Label htmlFor="staff-salary">Salary (₹)</Label>
+              <Label htmlFor="staff-salary">Salary (₹) per month</Label>
               <Input
                 id="staff-salary"
                 type="number"

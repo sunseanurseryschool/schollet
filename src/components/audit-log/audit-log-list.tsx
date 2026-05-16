@@ -10,11 +10,16 @@ import {
   PencilIcon,
   Trash2Icon,
   ActivityIcon,
+  BanIcon,
+  IndianRupeeIcon,
+  WalletIcon,
+  SlidersHorizontalIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
 } from "lucide-react";
 import { ExportButton } from "@/components/export-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -72,6 +77,69 @@ const ACTION_CONFIG: Record<string, ActionConfig> = {
     bg: "bg-danger-light",
     dot: "bg-danger",
     Icon: Trash2Icon,
+  },
+  DEACTIVATE: {
+    label: "DEACTIVATE",
+    color: "text-amber-700 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/40",
+    dot: "bg-amber-500",
+    Icon: BanIcon,
+  },
+  FEE_COLLECT: {
+    label: "FEE COLLECT",
+    color: "text-success",
+    bg: "bg-success-light",
+    dot: "bg-success",
+    Icon: IndianRupeeIcon,
+  },
+  PROCESS_SALARY: {
+    label: "SALARY",
+    color: "text-rose-700 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-950/40",
+    dot: "bg-rose-500",
+    Icon: WalletIcon,
+  },
+  CREATE_ACCOUNT: {
+    label: "ACCOUNT CREATE",
+    color: "text-success",
+    bg: "bg-success-light",
+    dot: "bg-success",
+    Icon: PlusCircleIcon,
+  },
+  UPDATE_ACCOUNT: {
+    label: "ACCOUNT UPDATE",
+    color: "text-brand",
+    bg: "bg-brand-light",
+    dot: "bg-brand",
+    Icon: PencilIcon,
+  },
+  DELETE_ACCOUNT: {
+    label: "ACCOUNT DELETE",
+    color: "text-danger",
+    bg: "bg-danger-light",
+    dot: "bg-danger",
+    Icon: Trash2Icon,
+  },
+  ADJUST_ACCOUNT: {
+    label: "ADJUST",
+    color: "text-violet-700 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-950/40",
+    dot: "bg-violet-500",
+    Icon: SlidersHorizontalIcon,
+  },
+  INVENTORY_IN: {
+    label: "STOCK IN",
+    color: "text-emerald-700 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/40",
+    dot: "bg-emerald-500",
+    Icon: ArrowDownIcon,
+  },
+  INVENTORY_OUT: {
+    label: "STOCK OUT",
+    color: "text-orange-700 dark:text-orange-400",
+    bg: "bg-orange-50 dark:bg-orange-950/40",
+    dot: "bg-orange-500",
+    Icon: ArrowUpIcon,
   },
 };
 
@@ -134,7 +202,7 @@ function DetailsModal({ log, open, onOpenChange }: { log: AuditLog; open: boolea
                   <dt className="text-xs font-medium text-text-secondary whitespace-nowrap">{key}</dt>
                   <dd className="text-xs text-text-primary break-all">
                     {value === null || value === undefined ? (
-                      <span className="italic text-text-tertiary">null</span>
+                      <span className="italic text-text-tertiary">-</span>
                     ) : typeof value === "object" ? (
                       <code className="bg-surface-tertiary px-1 py-0.5 rounded">{JSON.stringify(value)}</code>
                     ) : (
@@ -252,7 +320,7 @@ function TimelineEntry({ log, index, isLast }: TimelineEntryProps) {
                             <dt className="text-xs font-medium text-text-secondary whitespace-nowrap">{key}</dt>
                             <dd className="text-xs text-text-primary break-all">
                               {value === null || value === undefined
-                                ? <span className="italic text-text-tertiary">null</span>
+                                ? <span className="italic text-text-tertiary">-</span>
                                 : typeof value === "object"
                                 ? <code className="bg-surface-tertiary px-1 py-0.5 rounded">{JSON.stringify(value)}</code>
                                 : String(value)}
@@ -358,11 +426,19 @@ export function AuditLogList() {
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-text-secondary">Action</label>
             <Select value={actionFilter} onValueChange={(val) => setActionFilter(val == null || val === "__all__" ? "" : val)}>
-              <SelectTrigger className="w-[130px]"><SelectValue placeholder="All Actions" /></SelectTrigger>
+              <SelectTrigger className="w-[170px]">
+                <span>
+                  {actionFilter
+                    ? (ACTION_CONFIG[actionFilter]?.label ?? actionFilter)
+                    : "All Actions"}
+                </span>
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">All Actions</SelectItem>
                 {AUDIT_ACTION_VALUES.map((a) => (
-                  <SelectItem key={a} value={a}>{a}</SelectItem>
+                  <SelectItem key={a} value={a}>
+                    {ACTION_CONFIG[a]?.label ?? a}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

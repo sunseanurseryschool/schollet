@@ -1,25 +1,39 @@
 import { z } from "zod";
 
-export const ACCOUNT_TYPE_VALUES = [
-  "INCOME",
-  "EXPENSE",
-  "ASSET",
-  "LIABILITY",
-] as const;
+const nameSchema = z
+  .string()
+  .min(1, "Account name is required")
+  .max(80, "Account name must be 80 characters or fewer")
+  .trim();
 
-export const accountListQuerySchema = z.object({
-  type: z.enum(ACCOUNT_TYPE_VALUES, { message: "Select a valid account type" }).optional(),
+export const createAccountSchema = z.object({
+  name: nameSchema,
+  is_online: z.boolean(),
 });
 
-export type AccountListQuery = z.infer<typeof accountListQuerySchema>;
+export const updateAccountSchema = z.object({
+  name: nameSchema.optional(),
+  is_online: z.boolean().optional(),
+});
 
-export const setOpeningBalanceSchema = z.object({
-  accountId: z.string().uuid("accountId must be a valid UUID"),
+export const ADJUSTMENT_TYPES = ["increase", "decrease"] as const;
+export type AdjustmentType = (typeof ADJUSTMENT_TYPES)[number];
+
+export const createAccountAdjustmentSchema = z.object({
+  type: z.enum(ADJUSTMENT_TYPES, { message: "Select increase or decrease" }),
   amount: z
-    .number()
+    .number({ message: "Amount must be a number" })
     .positive("Amount must be greater than zero")
-    .finite("Amount must be a finite number"),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+    .multipleOf(0.01, "Amount can have at most 2 decimal places"),
+  reason: z
+    .string()
+    .min(3, "Reason must be at least 3 characters")
+    .max(500, "Reason must be 500 characters or fewer")
+    .trim(),
 });
 
-export type SetOpeningBalanceInput = z.infer<typeof setOpeningBalanceSchema>;
+export type CreateAccountInput = z.infer<typeof createAccountSchema>;
+export type UpdateAccountInput = z.infer<typeof updateAccountSchema>;
+export type CreateAccountAdjustmentInput = z.infer<
+  typeof createAccountAdjustmentSchema
+>;

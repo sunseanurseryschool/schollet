@@ -113,12 +113,14 @@ describe("updateInventoryItemSchema", () => {
 // ─── createInventoryTransactionSchema ────────────────────────────────────────
 
 describe("createInventoryTransactionSchema", () => {
+  const validAccountId = "11111111-1111-4111-9111-111111111111";
+
   const validIn = {
     type: "IN" as const,
     quantity: 10,
     description: "Restocked",
     date: "2026-04-14",
-    is_purchase: false,
+    account_id: validAccountId,
   };
 
   const validOut = {
@@ -126,32 +128,25 @@ describe("createInventoryTransactionSchema", () => {
     quantity: 3,
     description: "Used for exam",
     date: "2026-04-14",
-    is_purchase: false,
   };
 
-  it("accepts valid IN transaction", () => {
+  it("accepts valid IN transaction with account_id", () => {
     expect(createInventoryTransactionSchema.safeParse(validIn).success).toBe(
       true
     );
   });
 
-  it("accepts valid OUT transaction", () => {
+  it("accepts valid OUT transaction without account_id", () => {
     expect(createInventoryTransactionSchema.safeParse(validOut).success).toBe(
       true
     );
   });
 
-  it("accepts IN purchase with amount", () => {
-    const result = createInventoryTransactionSchema.safeParse({
-      ...validIn,
-      is_purchase: true,
-      amount: 1500.0,
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.amount).toBe(1500.0);
-      expect(result.data.is_purchase).toBe(true);
-    }
+  it("rejects IN transaction missing account_id", () => {
+    const { account_id, ...rest } = validIn;
+    void account_id;
+    const result = createInventoryTransactionSchema.safeParse(rest);
+    expect(result.success).toBe(false);
   });
 
   it("rejects invalid type value", () => {
@@ -216,36 +211,6 @@ describe("createInventoryTransactionSchema", () => {
       description: "x".repeat(501),
     });
     expect(result.success).toBe(false);
-  });
-
-  it("rejects negative amount", () => {
-    const result = createInventoryTransactionSchema.safeParse({
-      ...validIn,
-      is_purchase: true,
-      amount: -100,
-    });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts zero amount (purchase with no cost recorded)", () => {
-    const result = createInventoryTransactionSchema.safeParse({
-      ...validIn,
-      is_purchase: true,
-      amount: 0,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("amount is optional when is_purchase is false", () => {
-    const result = createInventoryTransactionSchema.safeParse({
-      ...validIn,
-      is_purchase: false,
-      // amount omitted
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.amount).toBeUndefined();
-    }
   });
 });
 

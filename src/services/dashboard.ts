@@ -27,8 +27,8 @@ export interface DashboardStats {
  *
  * - todayCollection: sum of fee_transactions.paid_amount where payment_date = today
  * - totalActiveStudents: count of students where status = 'active'
- * - monthlyIncome: credit-normal sum from journal_lines on INCOME accounts for current month
- * - monthlyExpense: debit-normal sum from journal_lines on EXPENSE accounts for current month
+ * - monthlyIncome: sum of fee_transactions.paid_amount for the current month
+ * - monthlyExpense: sum of expenses.amount + salary_payments.amount for the current month
  * - pendingDues: sum of (total_fee - paid_amount - discount_amount) across active students
  * - recentTransactions: last 5 fee_transactions with student name
  */
@@ -76,50 +76,57 @@ export async function getDashboardStats(): Promise<
 
     const totalActiveStudents = studentCount ?? 0;
 
-    // ── 3. Monthly income & expense from journal ──────────────────────────────
-    const { data: journalRows, error: journalError } = await supabase
-      .from("journal_lines")
-      .select(
-        "debit, credit, accounts!inner(type), journal_entries!inner(date)"
-      )
-      .gte("journal_entries.date" as string, monthStart)
-      .lte("journal_entries.date" as string, monthEnd);
+    // ── 3. Monthly income & expense from source tables ────────────────────────
+    const { data: monthlyIncomeRows, error: monthlyIncomeError } = await supabase
+      .from("fee_transactions")
+      .select("paid_amount")
+      .gte("payment_date", monthStart)
+      .lte("payment_date", monthEnd);
 
-    if (journalError) {
-      return { data: null, error: journalError.message };
+    if (monthlyIncomeError) {
+      return { data: null, error: monthlyIncomeError.message };
     }
 
-    type JournalRowShape = {
-      debit: unknown;
-      credit: unknown;
-      accounts: unknown;
-    };
+    const monthlyIncome =
+      Math.round(
+        (monthlyIncomeRows ?? []).reduce(
+          (sum, row) => sum + Number(row.paid_amount),
+          0
+        ) * 100
+      ) / 100;
 
-    let monthlyIncome = 0;
-    let monthlyExpense = 0;
+    const { data: monthlyExpenseRows, error: monthlyExpenseError } = await supabase
+      .from("expenses")
+      .select("amount")
+      .gte("date", monthStart)
+      .lte("date", monthEnd);
 
-    for (const rawRow of journalRows ?? []) {
-      const row = rawRow as unknown as JournalRowShape;
-      const accountRaw = row.accounts;
-      const account = Array.isArray(accountRaw)
-        ? (accountRaw[0] as { type: string } | undefined) ?? null
-        : (accountRaw as { type: string } | null);
-      if (!account) continue;
-
-      const debit = Number(row.debit);
-      const credit = Number(row.credit);
-
-      if (account.type === "INCOME") {
-        // Credit-normal: income = credits - debits
-        monthlyIncome += credit - debit;
-      } else if (account.type === "EXPENSE") {
-        // Debit-normal: expense = debits - credits
-        monthlyExpense += debit - credit;
-      }
+    if (monthlyExpenseError) {
+      return { data: null, error: monthlyExpenseError.message };
     }
 
-    monthlyIncome = Math.round(monthlyIncome * 100) / 100;
-    monthlyExpense = Math.round(monthlyExpense * 100) / 100;
+    const { data: monthlySalaryRows, error: monthlySalaryError } = await supabase
+      .from("salary_payments")
+      .select("amount")
+      .gte("payment_date", monthStart)
+      .lte("payment_date", monthEnd);
+
+    if (monthlySalaryError) {
+      return { data: null, error: monthlySalaryError.message };
+    }
+
+    const monthlyExpense =
+      Math.round(
+        ((monthlyExpenseRows ?? []).reduce(
+          (sum, row) => sum + Number(row.amount),
+          0
+        ) +
+          (monthlySalaryRows ?? []).reduce(
+            (sum, row) => sum + Number(row.amount),
+            0
+          )) *
+          100
+      ) / 100;
 
     // ── 4. Pending dues across all active students ────────────────────────────
     // Fetch all active student IDs

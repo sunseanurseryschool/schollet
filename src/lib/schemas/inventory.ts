@@ -41,26 +41,36 @@ export const updateInventoryItemSchema = z.object({
     .optional(),
 });
 
-export const createInventoryTransactionSchema = z.object({
-  type: z.enum(["IN", "OUT"], { message: "Type must be IN or OUT" }),
-  quantity: z
-    .number({ message: "Quantity must be a number" })
-    .int("Quantity must be a whole number")
-    .min(1, "Quantity must be at least 1"),
-  description: z
-    .string()
-    .max(500, "Description must be 500 characters or fewer")
-    .trim(),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-  // For IN transactions that are purchases — triggers ledger journal entry
-  is_purchase: z.boolean(),
-  amount: z
-    .number({ message: "Amount must be a number" })
-    .min(0, "Amount cannot be negative")
-    .optional(),
-});
+export const createInventoryTransactionSchema = z
+  .object({
+    type: z.enum(["IN", "OUT"], { message: "Type must be IN or OUT" }),
+    quantity: z
+      .number({ message: "Quantity must be a number" })
+      .int("Quantity must be a whole number")
+      .min(1, "Quantity must be at least 1"),
+    description: z
+      .string()
+      .max(500, "Description must be 500 characters or fewer")
+      .trim(),
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+    // Required for IN (purchase). OUT (issue) doesn't move money.
+    account_id: z.string().uuid("Select a valid account").optional(),
+    amount: z
+      .number({ message: "Amount must be a number" })
+      .min(0, "Amount cannot be negative")
+      .optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type === "IN" && !data.account_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["account_id"],
+        message: "Select an account for purchases",
+      });
+    }
+  });
 
 export const inventoryListQuerySchema = z.object({
   low_stock: z

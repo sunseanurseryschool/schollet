@@ -142,31 +142,3 @@ describe("receipt number format", () => {
   });
 });
 
-// ─── Payment mode label mapping ───────────────────────────────────────────────
-
-describe("payment mode label coverage", () => {
-  const PAYMENT_MODE_LABELS = {
-    CASH: "Cash",
-    UPI: "UPI",
-    BANK_TRANSFER: "Bank Transfer",
-    CHEQUE: "Cheque",
-  } as const;
-
-  const allModes: Array<keyof typeof PAYMENT_MODE_LABELS> = [
-    "CASH",
-    "UPI",
-    "BANK_TRANSFER",
-    "CHEQUE",
-  ];
-
-  it("has a label for every PaymentMode", () => {
-    for (const mode of allModes) {
-      expect(PAYMENT_MODE_LABELS[mode]).toBeDefined();
-      expect(PAYMENT_MODE_LABELS[mode].length).toBeGreaterThan(0);
-    }
-  });
-
-  it("BANK_TRANSFER formats without underscore", () => {
-    expect(PAYMENT_MODE_LABELS.BANK_TRANSFER).toBe("Bank Transfer");
-  });
-});

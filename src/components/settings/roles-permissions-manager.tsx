@@ -352,7 +352,7 @@ export function RolesPermissionsManager() {
                               animate={{ opacity: 1, scale: 1 }}
                               transition={{ duration: 0.2 }}
                             >
-                              <Badge variant="secondary" className="text-xs font-mono">{p.code}</Badge>
+                              <Badge variant="secondary" className="text-[10px] font-mono">{p.code}</Badge>
                             </motion.div>
                           ))
                         )}

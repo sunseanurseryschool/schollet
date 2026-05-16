@@ -36,7 +36,7 @@ export async function GET(
 
     const result = await getStudentById(id);
     if (result.error) {
-      const isNotFound = result.error.includes("No rows");
+      const isNotFound = result.error === "Student not found";
       return NextResponse.json(
         { error: result.error },
         { status: isNotFound ? 404 : 500 }

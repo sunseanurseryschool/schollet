@@ -528,6 +528,7 @@ export function FeeDuesView() {
                       >
                         <Button
                           size="sm"
+                          nativeButton={false}
                           className="h-7 text-xs bg-gradient-to-r from-[#2563EB] to-[#3B82F6] hover:from-[#1D4ED8] hover:to-[#2563EB] text-white border-0 shadow-sm transition-all"
                           render={
                             <Link

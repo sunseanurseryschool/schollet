@@ -28,6 +28,7 @@ import {
   type CreateExpenseInput,
   type ExpenseCategory,
 } from "@/lib/schemas/expense";
+import { useAccounts } from "@/hooks/use-accounts";
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -65,6 +66,7 @@ export function ExpenseFormDialog({
   onSuccess,
 }: ExpenseFormDialogProps) {
   const [isPending, setIsPending] = React.useState(false);
+  const { accounts } = useAccounts();
 
   const {
     register,
@@ -76,27 +78,28 @@ export function ExpenseFormDialog({
   } = useForm<CreateExpenseInput>({
     resolver: zodResolver(createExpenseSchema),
     defaultValues: {
+      account_id: "",
       amount: undefined,
       category: undefined,
       description: "",
       date: new Date().toISOString().slice(0, 10),
-      isInventory: false,
     },
   });
 
   React.useEffect(() => {
     if (open) {
       reset({
+        account_id: "",
         amount: undefined,
         category: undefined,
         description: "",
         date: new Date().toISOString().slice(0, 10),
-        isInventory: false,
       });
     }
   }, [open, reset]);
 
   const categoryValue = watch("category");
+  const accountIdValue = watch("account_id");
 
   async function onSubmit(data: CreateExpenseInput) {
     setIsPending(true);
@@ -104,10 +107,7 @@ export function ExpenseFormDialog({
       const response = await fetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...data,
-          isInventory: data.category === "Inventory",
-        }),
+        body: JSON.stringify(data),
       });
 
       if (!response.ok) {
@@ -237,9 +237,59 @@ export function ExpenseFormDialog({
               )}
             </motion.div>
 
-            {/* Description */}
+            {/* Account */}
             <motion.div
               custom={2}
+              variants={fieldVariants}
+              initial="hidden"
+              animate={open ? "visible" : "hidden"}
+              className="grid gap-1.5"
+            >
+              <Label htmlFor="expense-account" className="text-xs uppercase tracking-wide text-text-secondary font-semibold">
+                Account <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={accountIdValue ?? ""}
+                onValueChange={(val) => {
+                  if (val != null) {
+                    setValue("account_id", val, { shouldValidate: true });
+                  }
+                }}
+              >
+                <SelectTrigger
+                  id="expense-account"
+                  className="w-full"
+                  aria-invalid={!!errors.account_id}
+                >
+                  <span>
+                    {accountIdValue
+                      ? accounts.find((a) => a.id === accountIdValue)?.name ??
+                        "Select account"
+                      : "Select account"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.account_id && (
+                <motion.p
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-xs text-destructive"
+                >
+                  {errors.account_id.message}
+                </motion.p>
+              )}
+            </motion.div>
+
+            {/* Description */}
+            <motion.div
+              custom={3}
               variants={fieldVariants}
               initial="hidden"
               animate={open ? "visible" : "hidden"}
@@ -267,7 +317,7 @@ export function ExpenseFormDialog({
 
             {/* Date */}
             <motion.div
-              custom={3}
+              custom={4}
               variants={fieldVariants}
               initial="hidden"
               animate={open ? "visible" : "hidden"}

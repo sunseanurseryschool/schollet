@@ -82,8 +82,9 @@ const feeHeadRowVariants = {
 
 function computeHeadSum(heads: CreateFeeConfigInput["fee_heads"]): number {
   return (
-    Math.round(heads.reduce((acc, h) => acc + (Number(h.amount) || 0), 0) * 100) /
-    100
+    Math.round(
+      heads.reduce((acc, h) => acc + (Number(h.amount) || 0), 0) * 100,
+    ) / 100
   );
 }
 
@@ -175,7 +176,7 @@ export function FeeConfigFormDialog({
       toast.success(
         isEditing
           ? "Fee configuration updated successfully"
-          : "Fee configuration created successfully"
+          : "Fee configuration created successfully",
       );
       onSuccess();
       onOpenChange(false);
@@ -226,7 +227,7 @@ export function FeeConfigFormDialog({
                         setValue(
                           "grade",
                           val as CreateFeeConfigInput["grade"],
-                          { shouldValidate: true }
+                          { shouldValidate: true },
                         );
                       }
                     }}
@@ -241,7 +242,7 @@ export function FeeConfigFormDialog({
                     <SelectContent>
                       {GRADES.map((g) => (
                         <SelectItem key={g} value={g}>
-                          Grade {g}
+                          {g}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -266,7 +267,9 @@ export function FeeConfigFormDialog({
                     value={watch("academic_year") || ""}
                     onValueChange={(val) => {
                       if (val != null) {
-                        setValue("academic_year", val, { shouldValidate: true });
+                        setValue("academic_year", val, {
+                          shouldValidate: true,
+                        });
                       }
                     }}
                   >
@@ -321,7 +324,9 @@ export function FeeConfigFormDialog({
                   <div className="grid gap-2">
                     {/* Column headers */}
                     <div className="grid grid-cols-[1fr_120px_32px] gap-2 px-1">
-                      <span className="text-xs font-medium text-text-secondary">Name</span>
+                      <span className="text-xs font-medium text-text-secondary">
+                        Name
+                      </span>
                       <span className="text-xs font-medium text-text-secondary">
                         Amount (Rs)
                       </span>
@@ -392,7 +397,8 @@ export function FeeConfigFormDialog({
                   <div
                     className="rounded-xl border border-border-lighter px-4 py-3 flex items-center justify-between"
                     style={{
-                      background: "linear-gradient(135deg, var(--surface-secondary) 0%, var(--surface) 100%)",
+                      background:
+                        "linear-gradient(135deg, var(--surface-secondary) 0%, var(--surface) 100%)",
                     }}
                   >
                     <span className="text-sm font-medium text-text-primary">

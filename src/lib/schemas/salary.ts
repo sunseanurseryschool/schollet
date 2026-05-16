@@ -4,6 +4,7 @@ const MONTH_REGEX = /^\d{4}-\d{2}$/;
 
 export const processSalarySchema = z.object({
   staff_id: z.string().min(1, "Staff ID is required"),
+  account_id: z.string().uuid("Select a valid account"),
   month: z
     .string()
     .regex(MONTH_REGEX, "Month must be in YYYY-MM format"),
@@ -19,6 +20,7 @@ export const processSalarySchema = z.object({
 });
 
 export const bulkSalarySchema = z.object({
+  account_id: z.string().uuid("Select a valid account"),
   month: z
     .string()
     .regex(MONTH_REGEX, "Month must be in YYYY-MM format"),

@@ -75,32 +75,45 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 1. Create auth user via Supabase Admin API
-    const signupRes = await fetch(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/signup`,
+    // 1. Create auth user via the admin API (service role).
+    //    Using /auth/v1/admin/users instead of /auth/v1/signup avoids the
+    //    public sign-up rate limit and creates the user with email_confirm=true.
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey) {
+      return NextResponse.json(
+        { error: "Server misconfigured: SUPABASE_SERVICE_ROLE_KEY missing" },
+        { status: 500 },
+      );
+    }
+
+    const adminRes = await fetch(
+      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/admin/users`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
         },
         body: JSON.stringify({
           email: parsed.data.email,
           password: parsed.data.password,
+          email_confirm: true,
         }),
       }
     );
 
-    if (!signupRes.ok) {
-      const err = await signupRes.json();
+    if (!adminRes.ok) {
+      const err = await adminRes.json();
       const msg = (err as { msg?: string; error_description?: string }).msg
         ?? (err as { error_description?: string }).error_description
         ?? "Failed to create login account";
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const authData = (await signupRes.json()) as { user?: { id: string } };
-    const authUserId = authData.user?.id;
+    const authData = (await adminRes.json()) as { id?: string; user?: { id: string } };
+    // The admin endpoint returns the user object directly (id at the top level).
+    const authUserId = authData.id ?? authData.user?.id;
 
     if (!authUserId) {
       return NextResponse.json(

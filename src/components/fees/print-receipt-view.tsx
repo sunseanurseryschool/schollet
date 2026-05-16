@@ -2,7 +2,6 @@
 
 import type { ReceiptData } from "@/app/api/fees/receipt/[receiptNo]/route";
 import { formatINR } from "@/lib/format";
-import { StatusBadge, paymentModeVariant } from "@/components/ui/status-badge";
 import { ArrowLeftIcon, PrinterIcon, CheckCircle2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -299,12 +298,7 @@ export function PrintReceiptView({ receipt }: { receipt: ReceiptData }) {
               transition={{ delay: 0.46, duration: 0.4 }}
               className="bg-surface-secondary print:bg-[#F8FAFC] rounded-lg border px-4 py-3 grid grid-cols-2 gap-x-8 gap-y-2 text-sm"
             >
-              <div>
-                <span className="text-text-tertiary print:text-gray-500 text-xs">Payment Mode</span>
-                <div className="mt-0.5">
-                  <StatusBadge variant={paymentModeVariant(receipt.payment_mode)} />
-                </div>
-              </div>
+              <LabelValue label="Paid via" value={receipt.account_name} />
               {receipt.received_by_name && (
                 <LabelValue
                   label="Received By"

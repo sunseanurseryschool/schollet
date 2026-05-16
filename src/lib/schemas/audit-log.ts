@@ -1,6 +1,19 @@
 import { z } from "zod";
 
-export const AUDIT_ACTION_VALUES = ["CREATE", "UPDATE", "DELETE"] as const;
+export const AUDIT_ACTION_VALUES = [
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+  "DEACTIVATE",
+  "FEE_COLLECT",
+  "PROCESS_SALARY",
+  "CREATE_ACCOUNT",
+  "UPDATE_ACCOUNT",
+  "DELETE_ACCOUNT",
+  "ADJUST_ACCOUNT",
+  "INVENTORY_IN",
+  "INVENTORY_OUT",
+] as const;
 
 export const AUDIT_ENTITY_VALUES = [
   "student",
@@ -8,7 +21,7 @@ export const AUDIT_ENTITY_VALUES = [
   "fee_transaction",
   "expense",
   "account",
-  "journal_entry",
+  "salary_payment",
   "staff",
   "role",
   "inventory_item",

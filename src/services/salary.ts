@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createSalaryEntry } from "@/services/ledger";
 import { logAudit } from "@/lib/audit";
 import type { SalaryPayment } from "@/types/database";
 import type { ServiceResult } from "@/services/student";
@@ -41,12 +40,13 @@ export interface BulkSalaryResult {
 
 /**
  * Process salary for a single staff member for the given month.
- * Inserts into salary_payments, creates a ledger journal entry, and writes audit log.
+ * Inserts into salary_payments (with the chosen account) and writes audit log.
  * Returns an error if the staff member has already been paid for this month.
  */
 export async function processSalary(
   userId: string,
   staffId: string,
+  accountId: string,
   month: string,
   amount: number,
   notes?: string,
@@ -56,7 +56,6 @@ export async function processSalary(
     const supabase = await createClient();
     const date = paymentDate ?? new Date().toISOString().split("T")[0]!;
 
-    // Verify staff exists and is active
     const { data: staffRow, error: staffError } = await supabase
       .from("staff")
       .select("id, name, is_active")
@@ -70,11 +69,11 @@ export async function processSalary(
       return { data: null, error: "Cannot process salary for inactive staff" };
     }
 
-    // Insert salary payment record — unique(staff_id, month) constraint guards duplicates
     const { data: payment, error: insertError } = await supabase
       .from("salary_payments")
       .insert({
         staff_id: staffId,
+        account_id: accountId,
         amount,
         month,
         payment_date: date,
@@ -84,7 +83,6 @@ export async function processSalary(
       .single();
 
     if (insertError) {
-      // Postgres unique violation code 23505
       if (insertError.code === "23505") {
         return {
           data: null,
@@ -96,30 +94,10 @@ export async function processSalary(
 
     const typedPayment = payment as SalaryPayment;
 
-    // Create double-entry journal entry: debit Salary Expense, credit Bank
-    const ledgerResult = await createSalaryEntry({
-      staffId,
-      amount,
-      date,
-      description: `Salary payment — ${staffRow.name} (${month})${notes ? ` — ${notes}` : ""}`,
-    });
-
-    if (ledgerResult.error) {
-      // Ledger failure: delete the payment record to keep data consistent
-      await supabase
-        .from("salary_payments")
-        .delete()
-        .eq("id", typedPayment.id);
-      return {
-        data: null,
-        error: `Ledger entry failed: ${ledgerResult.error}`,
-      };
-    }
-
-    // Audit log — financial action requires audit
     await logAudit(userId, "PROCESS_SALARY", "salary_payment", typedPayment.id, {
       staff_id: staffId,
       staff_name: staffRow.name,
+      account_id: accountId,
       month,
       amount,
       payment_date: date,
@@ -140,6 +118,7 @@ export async function processSalary(
  */
 export async function processBulkSalary(
   userId: string,
+  accountId: string,
   month: string,
   paymentDate?: string
 ): Promise<ServiceResult<BulkSalaryResult>> {
@@ -197,6 +176,7 @@ export async function processBulkSalary(
       const result = await processSalary(
         userId,
         staff.id,
+        accountId,
         month,
         staff.salary,
         "Bulk salary processing",

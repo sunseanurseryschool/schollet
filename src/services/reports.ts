@@ -11,16 +11,7 @@ export interface IncomeExpenseResult {
   net: number;
 }
 
-export interface ProfitLossLine {
-  account_id: string;
-  account_name: string;
-  account_type: "INCOME" | "EXPENSE";
-  amount: number;
-}
-
 export interface ProfitLossResult {
-  income_lines: ProfitLossLine[];
-  expense_lines: ProfitLossLine[];
   total_income: number;
   total_expense: number;
   net_profit: number;
@@ -75,63 +66,65 @@ export interface DiscountRow {
 
 // ─── Service functions ────────────────────────────────────────────────────────
 
+async function sumColumn(
+  table: "fee_transactions" | "expenses" | "salary_payments",
+  column: "paid_amount" | "amount",
+  dateColumn: "payment_date" | "date",
+  dateFrom: string,
+  dateTo: string
+): Promise<number | { error: string }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from(table)
+    .select(column)
+    .gte(dateColumn, dateFrom)
+    .lte(dateColumn, dateTo);
+
+  if (error) return { error: error.message };
+  return (data ?? []).reduce(
+    (sum, row) => sum + Number((row as Record<string, unknown>)[column] ?? 0),
+    0
+  );
+}
+
 /**
- * Aggregates income and expense totals from journal lines within a date range.
- * Source of truth: journal_entries + journal_lines joined with accounts.
- * INCOME accounts: natural balance = credits - debits (positive credit = income).
- * EXPENSE accounts: natural balance = debits - credits (positive debit = expense).
+ * Income = sum of fee_transactions.paid_amount in range.
+ * Expense = sum of expenses.amount + salary_payments.amount in range.
  */
 export async function getIncomeVsExpense(
   dateFrom: string,
   dateTo: string
 ): Promise<ServiceResult<IncomeExpenseResult>> {
   try {
-    const supabase = await createClient();
+    const incomeRes = await sumColumn(
+      "fee_transactions",
+      "paid_amount",
+      "payment_date",
+      dateFrom,
+      dateTo
+    );
+    if (typeof incomeRes === "object") return { data: null, error: incomeRes.error };
 
-    // Fetch journal lines for entries in the date range, joining account type
-    const { data: rows, error } = await supabase
-      .from("journal_lines")
-      .select(
-        "debit, credit, account_id, accounts!inner(type), journal_entries!inner(date)"
-      )
-      .gte("journal_entries.date" as string, dateFrom)
-      .lte("journal_entries.date" as string, dateTo);
+    const expenseRes = await sumColumn(
+      "expenses",
+      "amount",
+      "date",
+      dateFrom,
+      dateTo
+    );
+    if (typeof expenseRes === "object") return { data: null, error: expenseRes.error };
 
-    if (error) {
-      return { data: null, error: error.message };
-    }
+    const salaryRes = await sumColumn(
+      "salary_payments",
+      "amount",
+      "payment_date",
+      dateFrom,
+      dateTo
+    );
+    if (typeof salaryRes === "object") return { data: null, error: salaryRes.error };
 
-    let totalIncome = 0;
-    let totalExpense = 0;
-
-    type RowShape = {
-      debit: unknown;
-      credit: unknown;
-      accounts: unknown;
-    };
-
-    for (const rawRow of rows ?? []) {
-      const row = rawRow as unknown as RowShape;
-      const accountRaw = row.accounts;
-      // Supabase may return the joined row as an array (when using !inner) or object
-      const account = Array.isArray(accountRaw)
-        ? (accountRaw[0] as { type: string } | undefined) ?? null
-        : (accountRaw as { type: string } | null);
-      if (!account) continue;
-      const debit = Number(row.debit);
-      const credit = Number(row.credit);
-
-      if (account.type === "INCOME") {
-        // Income = credit-normal: income earned = credits - debits
-        totalIncome += credit - debit;
-      } else if (account.type === "EXPENSE") {
-        // Expense = debit-normal: expense incurred = debits - credits
-        totalExpense += debit - credit;
-      }
-    }
-
-    totalIncome = Math.round(totalIncome * 100) / 100;
-    totalExpense = Math.round(totalExpense * 100) / 100;
+    const totalIncome = Math.round(incomeRes * 100) / 100;
+    const totalExpense = Math.round((expenseRes + salaryRes) * 100) / 100;
 
     return {
       data: {
@@ -147,99 +140,208 @@ export async function getIncomeVsExpense(
   }
 }
 
-/**
- * Returns income and expense breakdowns per account within a date range.
- * Source of truth: journal_entries + journal_lines.
- */
 export async function getProfitAndLoss(
   dateFrom: string,
   dateTo: string
 ): Promise<ServiceResult<ProfitLossResult>> {
+  const totals = await getIncomeVsExpense(dateFrom, dateTo);
+  if (totals.error || !totals.data) {
+    return { data: null, error: totals.error };
+  }
+  return {
+    data: {
+      total_income: totals.data.total_income,
+      total_expense: totals.data.total_expense,
+      net_profit: totals.data.net,
+    },
+    error: null,
+  };
+}
+
+// ─── Monthly trend (last N months) ────────────────────────────────────────────
+
+export interface MonthlyTrendPoint {
+  month: string; // YYYY-MM
+  label: string; // "May 2026"
+  income: number;
+  expense: number;
+  net: number;
+}
+
+/**
+ * Returns one bucket per calendar month between `dateFrom` and `dateTo`
+ * (inclusive). Each bucket holds the sum of fees collected, expenses incurred,
+ * salaries paid, and the net (income − expense) for that month.
+ *
+ * Both dates are ISO YYYY-MM-DD. The full month each date lands in is included
+ * in the result (the first bucket starts on the 1st of dateFrom's month;
+ * the last bucket ends on the last day of dateTo's month).
+ */
+export async function getMonthlyTrend(
+  dateFrom: string,
+  dateTo: string
+): Promise<ServiceResult<MonthlyTrendPoint[]>> {
   try {
     const supabase = await createClient();
 
-    const { data: rows, error } = await supabase
-      .from("journal_lines")
-      .select(
-        "debit, credit, account_id, accounts!inner(name, type), journal_entries!inner(date)"
-      )
-      .gte("journal_entries.date" as string, dateFrom)
-      .lte("journal_entries.date" as string, dateTo);
+    const fromDate = new Date(`${dateFrom}T00:00:00`);
+    const toDate = new Date(`${dateTo}T00:00:00`);
+    // Snap to the first day of dateFrom's month and last day of dateTo's month.
+    const startOfRange = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+    const endOfRange = new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0);
+    const startISO = `${startOfRange.getFullYear()}-${String(startOfRange.getMonth() + 1).padStart(2, "0")}-01`;
+    const endISO = `${endOfRange.getFullYear()}-${String(endOfRange.getMonth() + 1).padStart(2, "0")}-${String(endOfRange.getDate()).padStart(2, "0")}`;
 
-    if (error) {
-      return { data: null, error: error.message };
-    }
+    const [feesRes, expensesRes, salariesRes] = await Promise.all([
+      supabase
+        .from("fee_transactions")
+        .select("payment_date, paid_amount")
+        .gte("payment_date", startISO)
+        .lte("payment_date", endISO),
+      supabase
+        .from("expenses")
+        .select("date, amount")
+        .gte("date", startISO)
+        .lte("date", endISO),
+      supabase
+        .from("salary_payments")
+        .select("payment_date, amount")
+        .gte("payment_date", startISO)
+        .lte("payment_date", endISO),
+    ]);
 
-    // Aggregate per account
-    const accountMap = new Map<
+    if (feesRes.error) return { data: null, error: feesRes.error.message };
+    if (expensesRes.error) return { data: null, error: expensesRes.error.message };
+    if (salariesRes.error) return { data: null, error: salariesRes.error.message };
+
+    const monthKey = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const monthLabel = (d: Date) =>
+      d.toLocaleString("en-US", { month: "short", year: "numeric" });
+
+    // Build every month bucket from startOfRange → endOfRange inclusive.
+    const buckets = new Map<
       string,
-      { name: string; type: string; debit: number; credit: number }
+      { label: string; income: number; expense: number }
     >();
-
-    type PLRowShape = {
-      debit: unknown;
-      credit: unknown;
-      account_id: unknown;
-      accounts: unknown;
-    };
-
-    for (const rawRow of rows ?? []) {
-      const row = rawRow as unknown as PLRowShape;
-      const accountRaw = row.accounts;
-      const account = Array.isArray(accountRaw)
-        ? (accountRaw[0] as { name: string; type: string } | undefined) ?? null
-        : (accountRaw as { name: string; type: string } | null);
-      if (!account) continue;
-      if (account.type !== "INCOME" && account.type !== "EXPENSE") continue;
-
-      const id = row.account_id as string;
-      const existing = accountMap.get(id) ?? {
-        name: account.name,
-        type: account.type,
-        debit: 0,
-        credit: 0,
-      };
-      existing.debit += Number(row.debit);
-      existing.credit += Number(row.credit);
-      accountMap.set(id, existing);
+    const cursor = new Date(startOfRange);
+    while (
+      cursor.getFullYear() < endOfRange.getFullYear() ||
+      (cursor.getFullYear() === endOfRange.getFullYear() &&
+        cursor.getMonth() <= endOfRange.getMonth())
+    ) {
+      buckets.set(monthKey(cursor), {
+        label: monthLabel(cursor),
+        income: 0,
+        expense: 0,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
     }
 
-    const incomeLines: ProfitLossLine[] = [];
-    const expenseLines: ProfitLossLine[] = [];
+    const keyFromISODate = (iso: string) => iso.slice(0, 7); // YYYY-MM
 
-    for (const [id, acc] of accountMap) {
-      if (acc.type === "INCOME") {
-        const amount = Math.round((acc.credit - acc.debit) * 100) / 100;
-        incomeLines.push({
-          account_id: id,
-          account_name: acc.name,
-          account_type: "INCOME",
-          amount,
-        });
-      } else if (acc.type === "EXPENSE") {
-        const amount = Math.round((acc.debit - acc.credit) * 100) / 100;
-        expenseLines.push({
-          account_id: id,
-          account_name: acc.name,
-          account_type: "EXPENSE",
-          amount,
-        });
+    for (const row of feesRes.data ?? []) {
+      const k = keyFromISODate(row.payment_date as string);
+      const b = buckets.get(k);
+      if (b) b.income += Number(row.paid_amount);
+    }
+    for (const row of expensesRes.data ?? []) {
+      const k = keyFromISODate(row.date as string);
+      const b = buckets.get(k);
+      if (b) b.expense += Number(row.amount);
+    }
+    for (const row of salariesRes.data ?? []) {
+      const k = keyFromISODate(row.payment_date as string);
+      const b = buckets.get(k);
+      if (b) b.expense += Number(row.amount);
+    }
+
+    const trend: MonthlyTrendPoint[] = Array.from(buckets.entries()).map(
+      ([month, b]) => {
+        const income = Math.round(b.income * 100) / 100;
+        const expense = Math.round(b.expense * 100) / 100;
+        return {
+          month,
+          label: b.label,
+          income,
+          expense,
+          net: Math.round((income - expense) * 100) / 100,
+        };
       }
+    );
+
+    return { data: trend, error: null };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { data: null, error: message };
+  }
+}
+
+// ─── Expense breakdown by category ────────────────────────────────────────────
+
+export interface ExpenseBreakdownLine {
+  category: string;
+  amount: number;
+  percent: number; // 0..100, of total expense
+}
+
+/**
+ * Expense breakdown for the selected range:
+ *   - "Salary" → sum of salary_payments.amount
+ *   - everything else → sum of expenses.amount grouped by expenses.category
+ *
+ * Returns categories sorted by amount descending.
+ */
+export async function getExpenseBreakdown(
+  dateFrom: string,
+  dateTo: string
+): Promise<ServiceResult<ExpenseBreakdownLine[]>> {
+  try {
+    const supabase = await createClient();
+
+    const [expensesRes, salariesRes] = await Promise.all([
+      supabase
+        .from("expenses")
+        .select("category, amount")
+        .gte("date", dateFrom)
+        .lte("date", dateTo),
+      supabase
+        .from("salary_payments")
+        .select("amount")
+        .gte("payment_date", dateFrom)
+        .lte("payment_date", dateTo),
+    ]);
+
+    if (expensesRes.error)
+      return { data: null, error: expensesRes.error.message };
+    if (salariesRes.error)
+      return { data: null, error: salariesRes.error.message };
+
+    const totals = new Map<string, number>();
+    for (const row of expensesRes.data ?? []) {
+      const cat = String(row.category);
+      totals.set(cat, (totals.get(cat) ?? 0) + Number(row.amount));
+    }
+    const salaryTotal = (salariesRes.data ?? []).reduce(
+      (sum, row) => sum + Number(row.amount),
+      0
+    );
+    if (salaryTotal > 0) {
+      totals.set("Salary", (totals.get("Salary") ?? 0) + salaryTotal);
     }
 
-    const totalIncome = incomeLines.reduce((s, l) => s + l.amount, 0);
-    const totalExpense = expenseLines.reduce((s, l) => s + l.amount, 0);
+    const grandTotal = Array.from(totals.values()).reduce((s, v) => s + v, 0);
 
-    return {
-      data: {
-        income_lines: incomeLines,
-        expense_lines: expenseLines,
-        total_income: Math.round(totalIncome * 100) / 100,
-        total_expense: Math.round(totalExpense * 100) / 100,
-        net_profit: Math.round((totalIncome - totalExpense) * 100) / 100,
-      },
-      error: null,
-    };
+    const lines: ExpenseBreakdownLine[] = Array.from(totals.entries())
+      .map(([category, amount]) => ({
+        category,
+        amount: Math.round(amount * 100) / 100,
+        percent:
+          grandTotal === 0 ? 0 : Math.round((amount / grandTotal) * 1000) / 10,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+
+    return { data: lines, error: null };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return { data: null, error: message };

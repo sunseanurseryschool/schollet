@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { reverseJournalEntry } from "@/services/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +22,6 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    // Fetch the payment before deleting
     const { data: payment, error: fetchError } = await supabase
       .from("salary_payments")
       .select("*")
@@ -37,26 +35,6 @@ export async function DELETE(
       );
     }
 
-    // Reverse the journal entry linked to this payment
-    const { data: journalEntry } = await supabase
-      .from("journal_entries")
-      .select("id")
-      .eq("reference_type", "SALARY")
-      .eq("reference_id", payment.staff_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (journalEntry) {
-      const today = new Date().toISOString().slice(0, 10);
-      await reverseJournalEntry(
-        journalEntry.id,
-        `Reversal — deleted salary payment for ${payment.month}`,
-        today
-      );
-    }
-
-    // Delete the salary payment
     const { error: deleteError } = await supabase
       .from("salary_payments")
       .delete()
@@ -68,6 +46,7 @@ export async function DELETE(
 
     await logAudit(user.id, "DELETE", "salary_payment", id, {
       staff_id: payment.staff_id,
+      account_id: payment.account_id,
       month: payment.month,
       amount: payment.amount,
     });

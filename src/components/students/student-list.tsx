@@ -23,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import {
   StatusBadge,
   studentStatusVariant,
-  paymentModeVariant,
 } from "@/components/ui/status-badge";
 import {
   Select,
@@ -57,7 +56,7 @@ import {
 import { StudentFormDialog } from "@/components/students/student-form-dialog";
 import { PageTransition, tableRowVariants } from "@/components/ui/animated";
 import { GRADES, SECTIONS } from "@/lib/constants";
-import type { Student, FeeTransaction } from "@/types/database";
+import type { Student, FeeTransaction, Account } from "@/types/database";
 import { formatINR } from "@/lib/format";
 
 interface StudentListResult {
@@ -121,8 +120,26 @@ export function StudentList() {
     null,
   );
   const [historyData, setHistoryData] = React.useState<FeeTransaction[]>([]);
+  const [accounts, setAccounts] = React.useState<Account[]>([]);
+  const accountNameById = React.useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.name])),
+    [accounts],
+  );
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/accounts");
+        if (res.ok) setAccounts((await res.json()) as Account[]);
+      } catch {
+        // silent
+      }
+    })();
+  }, []);
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [deletingTxId, setDeletingTxId] = React.useState<string | null>(null);
+  const [deletePaymentTarget, setDeletePaymentTarget] = React.useState<
+    FeeTransaction | null
+  >(null);
 
   const fetchStudents = React.useCallback(async () => {
     setIsLoading(true);
@@ -255,9 +272,7 @@ export function StudentList() {
         const body = (await res.json()) as { error?: string };
         throw new Error(body.error ?? "Delete failed");
       }
-      toast.success(
-        `Payment ${receiptNo} has been deleted and journal entry reversed`,
-      );
+      toast.success(`Payment ${receiptNo} has been deleted`);
       setHistoryData((prev) => prev.filter((t) => t.id !== txId));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Delete failed");
@@ -389,8 +404,10 @@ export function StudentList() {
                   { key: "name", label: "Name" },
                   { key: "grade", label: "Grade" },
                   { key: "section", label: "Section" },
-                  { key: "parent_name", label: "Parent Name" },
-                  { key: "parent_phone", label: "Phone" },
+                  { key: "father_name", label: "Father Name" },
+                  { key: "father_mobile", label: "Father Mobile" },
+                  { key: "mother_name", label: "Mother Name" },
+                  { key: "mother_mobile", label: "Mother Mobile" },
                   { key: "status", label: "Status" },
                 ]}
                 filename="students"
@@ -519,10 +536,10 @@ export function StudentList() {
                     <TableCell>{student.grade}</TableCell>
                     <TableCell>{student.section}</TableCell>
                     <TableCell className="text-text-secondary">
-                      {student.parent_name || "—"}
+                      {student.father_name || student.mother_name || "—"}
                     </TableCell>
                     <TableCell className="text-text-secondary">
-                      {student.parent_phone || "—"}
+                      {student.father_mobile || student.mother_mobile || "—"}
                     </TableCell>
                     <TableCell>
                       <StatusBadge
@@ -745,7 +762,7 @@ export function StudentList() {
                         Discount
                       </TableHead>
                       <TableHead className="font-semibold text-text-primary">
-                        Mode
+                        Account
                       </TableHead>
                       <TableHead className="w-16 text-right font-semibold text-text-primary">
                         Action
@@ -789,10 +806,8 @@ export function StudentList() {
                             "—"
                           )}
                         </TableCell>
-                        <TableCell>
-                          <StatusBadge
-                            variant={paymentModeVariant(tx.payment_mode)}
-                          />
+                        <TableCell className="text-sm text-text-secondary">
+                          {accountNameById.get(tx.account_id) ?? "—"}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -800,15 +815,7 @@ export function StudentList() {
                             size="icon"
                             className="h-7 w-7 text-text-tertiary hover:text-danger hover:bg-danger-light transition-colors"
                             disabled={deletingTxId === tx.id}
-                            onClick={() => {
-                              if (
-                                confirm(
-                                  `Delete payment ${tx.receipt_no}? This will reverse the journal entry.`,
-                                )
-                              ) {
-                                handleDeleteTransaction(tx.id, tx.receipt_no);
-                              }
-                            }}
+                            onClick={() => setDeletePaymentTarget(tx)}
                           >
                             {deletingTxId === tx.id ? (
                               <Loader2Icon className="h-3.5 w-3.5 animate-spin" />
@@ -838,6 +845,71 @@ export function StudentList() {
                 </span>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Payment Confirmation Dialog */}
+        <Dialog
+          open={deletePaymentTarget != null}
+          onOpenChange={(open) => {
+            if (!open && deletingTxId === null) setDeletePaymentTarget(null);
+          }}
+        >
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Delete Payment</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-text-secondary">
+                Are you sure you want to delete payment{" "}
+                <span className="font-semibold font-mono text-text-primary">
+                  {deletePaymentTarget?.receipt_no}
+                </span>
+                ?
+              </p>
+              {deletePaymentTarget && (
+                <div className="rounded-xl border bg-muted/40 p-3 text-sm space-y-1.5">
+                  <div className="flex justify-between">
+                    <span className="text-text-secondary">Date</span>
+                    <span className="font-medium text-text-primary">
+                      {deletePaymentTarget.payment_date}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-text-secondary">Paid</span>
+                    <span className="font-semibold text-success">
+                      {formatINR(deletePaymentTarget.paid_amount)}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-text-secondary">
+                This action cannot be undone.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="destructive"
+                disabled={deletingTxId !== null}
+                onClick={() => {
+                  if (deletePaymentTarget) {
+                    void handleDeleteTransaction(
+                      deletePaymentTarget.id,
+                      deletePaymentTarget.receipt_no,
+                    ).then(() => setDeletePaymentTarget(null));
+                  }
+                }}
+              >
+                {deletingTxId !== null ? "Deleting..." : "Delete"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={deletingTxId !== null}
+                onClick={() => setDeletePaymentTarget(null)}
+              >
+                Cancel
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

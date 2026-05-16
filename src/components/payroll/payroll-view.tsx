@@ -30,7 +30,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Dialog,
@@ -39,6 +38,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -47,6 +47,7 @@ import {
   AnimatedCard,
   tableRowVariants,
 } from "@/components/ui/animated";
+import { useAccounts } from "@/hooks/use-accounts";
 
 // ─── Local types ──────────────────────────────────────────────────────────────
 
@@ -280,6 +281,17 @@ export function PayrollView() {
   const [bulkDialogOpen, setBulkDialogOpen] = React.useState(false);
   const [isBulkProcessing, setIsBulkProcessing] = React.useState(false);
 
+  const { accounts } = useAccounts();
+  const [processAccountId, setProcessAccountId] = React.useState<string>("");
+  const [bulkAccountId, setBulkAccountId] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (processTarget) setProcessAccountId("");
+  }, [processTarget]);
+  React.useEffect(() => {
+    if (bulkDialogOpen) setBulkAccountId("");
+  }, [bulkDialogOpen]);
+
   // ── Data fetching ──────────────────────────────────────────────────────────
 
   const fetchPayrollGrid = React.useCallback(async () => {
@@ -342,6 +354,10 @@ export function PayrollView() {
 
   async function handleProcessConfirm() {
     if (!processTarget) return;
+    if (!processAccountId) {
+      toast.error("Select an account");
+      return;
+    }
     setIsProcessing(true);
     try {
       const res = await fetch("/api/salary", {
@@ -349,6 +365,7 @@ export function PayrollView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           staff_id: processTarget.id,
+          account_id: processAccountId,
           month: selectedMonth,
           amount: processTarget.salary,
         }),
@@ -375,12 +392,16 @@ export function PayrollView() {
   }
 
   async function handleBulkProcessConfirm() {
+    if (!bulkAccountId) {
+      toast.error("Select an account");
+      return;
+    }
     setIsBulkProcessing(true);
     try {
       const res = await fetch("/api/salary/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: selectedMonth }),
+        body: JSON.stringify({ account_id: bulkAccountId, month: selectedMonth }),
       });
 
       if (!res.ok) {
@@ -471,7 +492,10 @@ export function PayrollView() {
               }}
             >
               <SelectTrigger className="w-[200px]">
-                <SelectValue />
+                <span>
+                  {monthOptions.find((opt) => opt.value === selectedMonth)
+                    ?.label ?? formatMonth(selectedMonth)}
+                </span>
               </SelectTrigger>
               <SelectContent>
                 {monthOptions.map((opt) => (
@@ -820,8 +844,37 @@ export function PayrollView() {
                     </span>
                   </div>
                 </div>
+                <div className="grid gap-1.5">
+                  <Label
+                    htmlFor="process-account"
+                    className="text-xs uppercase tracking-wide text-text-secondary font-semibold"
+                  >
+                    Paid from <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={processAccountId}
+                    onValueChange={(val) => {
+                      if (val != null) setProcessAccountId(val);
+                    }}
+                  >
+                    <SelectTrigger id="process-account" className="w-full">
+                      <span>
+                        {processAccountId
+                          ? accounts.find((a) => a.id === processAccountId)?.name ??
+                            "Select account"
+                          : "Select account"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <p className="text-xs text-text-secondary">
-                  This will debit Salary Expense and credit Bank in the ledger.
                   This action cannot be undone.
                 </p>
               </motion.div>
@@ -909,9 +962,39 @@ export function PayrollView() {
                   </span>
                 </div>
               </div>
+              <div className="grid gap-1.5">
+                <Label
+                  htmlFor="bulk-account"
+                  className="text-xs uppercase tracking-wide text-text-secondary font-semibold"
+                >
+                  Paid from <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={bulkAccountId}
+                  onValueChange={(val) => {
+                    if (val != null) setBulkAccountId(val);
+                  }}
+                >
+                  <SelectTrigger id="bulk-account" className="w-full">
+                    <span>
+                      {bulkAccountId
+                        ? accounts.find((a) => a.id === bulkAccountId)?.name ??
+                          "Select account"
+                        : "Select account"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <p className="text-xs text-text-secondary">
-                Already-paid staff will be skipped automatically. Each payment
-                creates a ledger journal entry. This action cannot be undone.
+                Already-paid staff will be skipped automatically. This action
+                cannot be undone.
               </p>
             </motion.div>
             <DialogFooter>
@@ -968,7 +1051,7 @@ export function PayrollView() {
               <span className="font-semibold text-text-primary">
                 {deleteTarget?.staff?.name ?? "this staff member"}
               </span>
-              ? This will reverse the journal entry.
+              ? This action cannot be undone.
             </p>
             {deleteTarget && (
               <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">

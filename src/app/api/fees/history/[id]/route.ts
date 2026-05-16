@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { reverseJournalEntry } from "@/services/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +22,6 @@ export async function DELETE(
 
     const { id } = await context.params;
 
-    // Fetch the transaction before deleting
     const { data: transaction, error: fetchError } = await supabase
       .from("fee_transactions")
       .select("*")
@@ -37,24 +35,6 @@ export async function DELETE(
       );
     }
 
-    // Reverse the journal entry linked to this transaction
-    const { data: journalEntry } = await supabase
-      .from("journal_entries")
-      .select("id")
-      .eq("reference_type", "FEE")
-      .eq("reference_id", id)
-      .maybeSingle();
-
-    if (journalEntry) {
-      const today = new Date().toISOString().slice(0, 10);
-      await reverseJournalEntry(
-        journalEntry.id,
-        `Reversal — deleted fee payment ${transaction.receipt_no}`,
-        today
-      );
-    }
-
-    // Delete the fee transaction
     const { error: deleteError } = await supabase
       .from("fee_transactions")
       .delete()
@@ -67,9 +47,9 @@ export async function DELETE(
     await logAudit(user.id, "DELETE", "fee_transaction", id, {
       receipt_no: transaction.receipt_no,
       student_id: transaction.student_id,
+      account_id: transaction.account_id,
       paid_amount: transaction.paid_amount,
       discount_amount: transaction.discount_amount,
-      payment_mode: transaction.payment_mode,
     });
 
     return new NextResponse(null, { status: 204 });

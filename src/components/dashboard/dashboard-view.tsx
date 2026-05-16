@@ -374,6 +374,7 @@ function QuickActionsCard() {
                 >
                   <Button
                     variant="outline"
+                    nativeButton={false}
                     className="w-full h-auto flex-col items-start gap-2 p-4 border-border-light bg-surface hover:bg-surface-secondary hover:border-[#CBD5E1] transition-colors rounded-xl"
                     render={<Link href={action.href} />}
                   >

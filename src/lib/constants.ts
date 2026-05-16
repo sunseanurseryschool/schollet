@@ -4,20 +4,6 @@ export const GRADES: Grade[] = ["PreKG", "LKG", "UKG", "1", "2", "3", "4", "5"];
 
 export const SECTIONS: Section[] = ["A", "B", "C"];
 
-export const PAYMENT_MODES = [
-  { value: "CASH", label: "Cash" },
-  { value: "UPI", label: "UPI" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-  { value: "CHEQUE", label: "Cheque" },
-] as const;
-
-export const ACCOUNT_TYPES = [
-  { value: "ASSET", label: "Asset" },
-  { value: "LIABILITY", label: "Liability" },
-  { value: "INCOME", label: "Income" },
-  { value: "EXPENSE", label: "Expense" },
-] as const;
-
 export const APP_NAME = "Schollet";
 export const APP_TAGLINE = "Smart Finance for Schools";
 

@@ -3,21 +3,62 @@
 export type StudentStatus = "active" | "inactive" | "transferred";
 export type Grade = "PreKG" | "LKG" | "UKG" | "1" | "2" | "3" | "4" | "5";
 export type Section = "A" | "B" | "C";
-export type AccountType = "INCOME" | "EXPENSE" | "ASSET" | "LIABILITY";
-export type ReferenceType = "FEE" | "SALARY" | "EXPENSE" | "OPENING_BALANCE";
-export type PaymentMode = "CASH" | "UPI" | "BANK_TRANSFER" | "CHEQUE";
+export type Gender = "male" | "female" | "other";
+export type BloodGroup =
+  | "A+"
+  | "A-"
+  | "B+"
+  | "B-"
+  | "AB+"
+  | "AB-"
+  | "O+"
+  | "O-"
+  | "unknown";
 export type InventoryTransactionType = "IN" | "OUT";
 export type ReasonTagType = "DISCOUNT" | "EXPENSE";
 
 export interface Student {
   id: string;
   admission_no: string;
+  // Basic
   name: string;
+  gender: Gender | null;
+  date_of_birth: string | null;
+  blood_group: BloodGroup | null;
+  nationality: string | null;
+  religion: string | null;
+  community: string | null;
+  caste: string | null;
+  aadhaar_no: string | null;
   grade: Grade;
   section: Section;
   status: StudentStatus;
-  parent_name: string;
-  parent_phone: string;
+  // Father
+  father_name: string | null;
+  father_occupation: string | null;
+  father_company: string | null;
+  father_mobile: string | null;
+  father_email: string | null;
+  father_annual_income: number | null;
+  // Mother
+  mother_name: string | null;
+  mother_occupation: string | null;
+  mother_company: string | null;
+  mother_mobile: string | null;
+  mother_email: string | null;
+  mother_annual_income: number | null;
+  // Guardian
+  guardian_name: string | null;
+  guardian_relationship: string | null;
+  guardian_mobile: string | null;
+  guardian_address: string | null;
+  // Contact + Address
+  address_line: string | null;
+  city: string | null;
+  state: string | null;
+  pin_code: string | null;
+  emergency_contact: string | null;
+  alternate_phone: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -41,11 +82,11 @@ export interface FeeTransaction {
   id: string;
   student_id: string;
   fee_config_id: string;
+  account_id: string;
   total_fee: number;
   paid_amount: number;
   discount_amount: number;
   discount_reason: string | null;
-  payment_mode: PaymentMode;
   received_by: string;
   receipt_no: string;
   payment_date: string;
@@ -55,27 +96,17 @@ export interface FeeTransaction {
 export interface Account {
   id: string;
   name: string;
-  type: AccountType;
-  code: string;
-  is_system: boolean;
+  is_online: boolean;
   created_at: string;
 }
 
-export interface JournalEntry {
+export interface AccountAdjustment {
   id: string;
-  date: string;
-  reference_type: ReferenceType;
-  reference_id: string;
-  description: string;
-  created_at: string;
-}
-
-export interface JournalLine {
-  id: string;
-  journal_id: string;
   account_id: string;
-  debit: number;
-  credit: number;
+  amount: number; // signed: positive = increase, negative = decrease
+  reason: string;
+  created_by: string;
+  created_at: string;
 }
 
 export interface Staff {
@@ -116,6 +147,7 @@ export interface InventoryItem {
 export interface InventoryTransaction {
   id: string;
   item_id: string;
+  account_id: string | null;
   type: InventoryTransactionType;
   quantity: number;
   description: string;
@@ -125,6 +157,7 @@ export interface InventoryTransaction {
 
 export interface Expense {
   id: string;
+  account_id: string;
   amount: number;
   category: string;
   description: string;
@@ -152,6 +185,7 @@ export interface ReasonTag {
 export interface SalaryPayment {
   id: string;
   staff_id: string;
+  account_id: string;
   amount: number;
   month: string;
   payment_date: string;

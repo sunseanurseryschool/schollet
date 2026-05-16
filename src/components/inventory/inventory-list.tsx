@@ -30,7 +30,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
+import { useAccounts } from "@/hooks/use-accounts";
 import {
   Table,
   TableBody,
@@ -327,13 +329,13 @@ function StockDialog({
       quantity: 1,
       description: "",
       date: todayIso(),
-      is_purchase: false,
-      amount: undefined,
+      account_id: undefined,
     },
   });
 
-  const isPurchase = watch("is_purchase");
   const quantity = watch("quantity");
+  const accountIdValue = watch("account_id");
+  const { accounts } = useAccounts();
 
   React.useEffect(() => {
     if (open) {
@@ -343,8 +345,7 @@ function StockDialog({
         quantity: 1,
         description: "",
         date: todayIso(),
-        is_purchase: false,
-        amount: undefined,
+        account_id: undefined,
       });
     }
   }, [open, defaultType, reset]);
@@ -442,7 +443,7 @@ function StockDialog({
                     onClick={() => {
                       setTxnType("OUT");
                       setValue("type", "OUT", { shouldValidate: true });
-                      setValue("is_purchase", false, { shouldValidate: true });
+                      setValue("account_id", undefined, { shouldValidate: true });
                     }}
                   >
                     <ArrowUpIcon className="h-3.5 w-3.5" />
@@ -552,65 +553,51 @@ function StockDialog({
               )}
             </motion.div>
 
-            {/* Purchase flag */}
+            {/* Account picker (only for IN/purchases) */}
             {txnType === "IN" && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25 }}
-                className="grid gap-3"
+                className="grid gap-1.5"
               >
-                <div className="flex items-center gap-2">
-                  <input
-                    id="txn-is-purchase"
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-input"
-                    {...register("is_purchase")}
-                    onChange={(e) => {
-                      setValue("is_purchase", e.target.checked, {
-                        shouldValidate: true,
-                      });
-                      if (!e.target.checked) {
-                        setValue("amount", undefined, { shouldValidate: true });
-                      }
-                    }}
-                  />
-                  <Label htmlFor="txn-is-purchase" className="font-normal">
-                    This is a purchase (creates journal entry)
-                  </Label>
-                </div>
-
-                <AnimatePresence>
-                  {isPurchase && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.2 }}
-                      className="grid gap-1.5"
-                    >
-                      <Label htmlFor="txn-amount">
-                        Purchase Amount (INR){" "}
-                        <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="txn-amount"
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        placeholder="0.00"
-                        aria-invalid={!!errors.amount}
-                        {...register("amount", { valueAsNumber: true })}
-                      />
-                      {errors.amount && (
-                        <p className="text-xs text-destructive">
-                          {errors.amount.message}
-                        </p>
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <Label htmlFor="txn-account">
+                  Paid from <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={accountIdValue ?? ""}
+                  onValueChange={(val) => {
+                    if (val != null) {
+                      setValue("account_id", val, { shouldValidate: true });
+                    }
+                  }}
+                >
+                  <SelectTrigger
+                    id="txn-account"
+                    className="w-full"
+                    aria-invalid={!!errors.account_id}
+                  >
+                    <span>
+                      {accountIdValue
+                        ? accounts.find((a) => a.id === accountIdValue)?.name ??
+                          "Select account"
+                        : "Select account"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.account_id && (
+                  <p className="text-xs text-destructive">
+                    {errors.account_id.message}
+                  </p>
+                )}
               </motion.div>
             )}
           </div>

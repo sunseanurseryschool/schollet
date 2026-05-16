@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/audit";
-import { createFeePaymentEntry } from "@/services/ledger";
-import type { FeeTransaction, PaymentMode } from "@/types/database";
+import type { FeeTransaction } from "@/types/database";
 import type { ServiceResult } from "@/services/student";
 import type { CollectFeeInput } from "@/lib/schemas/fee-transaction";
 
@@ -65,11 +64,8 @@ export async function generateReceiptNo(): Promise<ServiceResult<string>> {
  * Collects a fee payment:
  * 1. Validates pending balance is sufficient
  * 2. Generates a receipt number
- * 3. Inserts a fee_transaction record
- * 4. Creates a double-entry journal entry via the ledger service
- * 5. Writes an audit log entry
- *
- * Financial rule: every money movement MUST create a journal entry.
+ * 3. Inserts a fee_transaction record (with the chosen account)
+ * 4. Writes an audit log entry
  */
 export async function collectFee(
   input: CollectFeeInput,
@@ -160,11 +156,11 @@ export async function collectFee(
       .insert({
         student_id: input.student_id,
         fee_config_id: input.fee_config_id,
+        account_id: input.account_id,
         total_fee: totalFee,
         paid_amount: paidAmount,
         discount_amount: discountAmount,
         discount_reason: input.discount_reason ?? null,
-        payment_mode: input.payment_mode as PaymentMode,
         received_by: staffId,
         receipt_no: receiptNo,
         payment_date: paymentDate,
@@ -178,35 +174,13 @@ export async function collectFee(
 
     const transaction = txData as FeeTransaction;
 
-    // 5. Create the ledger journal entry (mandatory — every money movement)
-    const ledgerResult = await createFeePaymentEntry({
-      feeTransactionId: transaction.id,
-      amount: paidAmount,
-      paymentMode: input.payment_mode,
-      date: paymentDate,
-      description: `Fee payment — receipt ${receiptNo}`,
-    });
-
-    if (ledgerResult.error) {
-      // Log the failure; the DB row is committed but we surface the ledger error
-      await logAudit(receivedBy, "FEE_COLLECT_LEDGER_FAILED", "fee_transaction", transaction.id, {
-        error: ledgerResult.error,
-        receipt_no: receiptNo,
-      });
-      return {
-        data: null,
-        error: `Payment recorded but ledger entry failed: ${ledgerResult.error}`,
-      };
-    }
-
-    // 6. Audit log
     await logAudit(receivedBy, "FEE_COLLECT", "fee_transaction", transaction.id, {
       receipt_no: receiptNo,
       student_id: input.student_id,
       fee_config_id: input.fee_config_id,
+      account_id: input.account_id,
       paid_amount: paidAmount,
       discount_amount: discountAmount,
-      payment_mode: input.payment_mode,
       payment_date: paymentDate,
     });
 

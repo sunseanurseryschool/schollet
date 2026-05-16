@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { auditLogListQuerySchema } from "@/lib/schemas/audit-log";
+import { auditLogListQuerySchema, AUDIT_ACTION_VALUES } from "@/lib/schemas/audit-log";
 
 describe("auditLogListQuerySchema", () => {
   it("accepts empty query with defaults", () => {
@@ -16,8 +16,7 @@ describe("auditLogListQuerySchema", () => {
   });
 
   it("accepts all valid action values", () => {
-    const actions = ["CREATE", "UPDATE", "DELETE"] as const;
-    for (const action of actions) {
+    for (const action of AUDIT_ACTION_VALUES) {
       const result = auditLogListQuerySchema.safeParse({ action });
       expect(result.success).toBe(true);
     }
@@ -35,7 +34,7 @@ describe("auditLogListQuerySchema", () => {
       "fee_transaction",
       "expense",
       "account",
-      "journal_entry",
+      "salary_payment",
       "staff",
       "role",
       "inventory_item",

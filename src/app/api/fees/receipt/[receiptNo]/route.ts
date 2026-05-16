@@ -2,14 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStudentById } from "@/services/student";
 import { getFeeConfigById } from "@/services/fee-config";
-import type { FeeTransaction, Grade, Section, PaymentMode } from "@/types/database";
+import type { FeeTransaction, Grade, Section } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 export interface ReceiptData {
   receipt_no: string;
   payment_date: string;
-  payment_mode: PaymentMode;
+  account_name: string;
   paid_amount: number;
   discount_amount: number;
   discount_reason: string | null;
@@ -114,18 +114,28 @@ export async function GET(
     const { data: staffRow } = await supabase
       .from("staff")
       .select("name")
-      .eq("user_id", transaction.received_by)
-      .eq("is_active", true)
+      .eq("id", transaction.received_by)
       .maybeSingle();
 
     if (staffRow) {
       receivedByName = (staffRow as { name: string }).name;
     }
 
+    // 6. Resolve account name
+    let accountName = "—";
+    const { data: accountRow } = await supabase
+      .from("accounts")
+      .select("name")
+      .eq("id", transaction.account_id)
+      .maybeSingle();
+    if (accountRow) {
+      accountName = (accountRow as { name: string }).name;
+    }
+
     const receipt: ReceiptData = {
       receipt_no: transaction.receipt_no,
       payment_date: transaction.payment_date,
-      payment_mode: transaction.payment_mode,
+      account_name: accountName,
       paid_amount: Math.round(Number(transaction.paid_amount) * 100) / 100,
       discount_amount: Math.round(Number(transaction.discount_amount) * 100) / 100,
       discount_reason: transaction.discount_reason,

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const result = await getProfitAndLoss(
       parsed.data.date_from,
-      parsed.data.date_to
+      parsed.data.date_to,
     );
 
     if (result.error) {

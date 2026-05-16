@@ -14,6 +14,7 @@ export const EXPENSE_CATEGORY_VALUES = [
 export type ExpenseCategory = (typeof EXPENSE_CATEGORY_VALUES)[number];
 
 export const createExpenseSchema = z.object({
+  account_id: z.string().uuid("Select a valid account"),
   amount: z
     .number({ message: "Amount is required" })
     .positive("Amount must be greater than zero")
@@ -29,7 +30,6 @@ export const createExpenseSchema = z.object({
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
-  isInventory: z.boolean().optional(),
 });
 
 export const expenseListQuerySchema = z.object({

@@ -115,7 +115,7 @@ export async function POST(
         type: parsed.data.type,
         quantity: parsed.data.quantity,
         new_quantity: updatedItem.quantity,
-        is_purchase: parsed.data.is_purchase,
+        account_id: parsed.data.account_id ?? null,
         amount: parsed.data.amount ?? null,
         date: parsed.data.date,
       }

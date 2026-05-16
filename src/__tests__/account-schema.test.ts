@@ -1,33 +1,53 @@
 import { describe, it, expect } from "vitest";
-import { accountListQuerySchema } from "@/lib/schemas/account";
+import {
+  createAccountSchema,
+  updateAccountSchema,
+} from "@/lib/schemas/account";
 
-describe("accountListQuerySchema", () => {
-  it("accepts empty query", () => {
-    const result = accountListQuerySchema.safeParse({});
+describe("createAccountSchema", () => {
+  it("accepts a valid account", () => {
+    const result = createAccountSchema.safeParse({
+      name: "Cash",
+      is_online: false,
+    });
     expect(result.success).toBe(true);
   });
 
-  it("accepts valid type filter", () => {
-    const types = ["INCOME", "EXPENSE", "ASSET", "LIABILITY"] as const;
-    for (const type of types) {
-      const result = accountListQuerySchema.safeParse({ type });
-      expect(result.success).toBe(true);
-    }
-  });
-
-  it("rejects invalid type value", () => {
-    const result = accountListQuerySchema.safeParse({ type: "DEBIT" });
+  it("rejects an empty name", () => {
+    const result = createAccountSchema.safeParse({
+      name: "",
+      is_online: false,
+    });
     expect(result.success).toBe(false);
   });
 
-  it("ignores unknown extra fields (strip behavior)", () => {
-    const result = accountListQuerySchema.safeParse({
-      type: "ASSET",
-      unknown_field: "should_be_stripped",
+  it("rejects an excessively long name", () => {
+    const result = createAccountSchema.safeParse({
+      name: "x".repeat(81),
+      is_online: true,
     });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a missing is_online flag", () => {
+    const result = createAccountSchema.safeParse({ name: "Cash" });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateAccountSchema", () => {
+  it("accepts a partial update with only name", () => {
+    const result = updateAccountSchema.safeParse({ name: "UPI" });
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect("unknown_field" in result.data).toBe(false);
-    }
+  });
+
+  it("accepts a partial update with only is_online", () => {
+    const result = updateAccountSchema.safeParse({ is_online: true });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts an empty patch", () => {
+    const result = updateAccountSchema.safeParse({});
+    expect(result.success).toBe(true);
   });
 });

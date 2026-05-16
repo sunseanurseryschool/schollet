@@ -16,8 +16,8 @@ import {
   CheckIcon,
   SparklesIcon,
   UserCircleIcon,
+  XIcon,
 } from "lucide-react";
-import { StatusBadge, paymentModeVariant } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   Table,
@@ -42,15 +41,12 @@ import {
   AnimatedCounter,
   SlideIn,
   tableRowVariants,
-  StaggerContainer,
-  StaggerItem,
 } from "@/components/ui/animated";
 import {
   collectFeeSchema,
   type CollectFeeInput,
 } from "@/lib/schemas/fee-transaction";
-import { PAYMENT_MODES } from "@/lib/constants";
-import type { Student, FeeTransaction } from "@/types/database";
+import type { Student, FeeTransaction, Account } from "@/types/database";
 import type { FeeConfigWithHeads } from "@/services/fee-config";
 import type { FeeSummary, CollectFeeOutput } from "@/services/fee-transaction";
 
@@ -285,6 +281,23 @@ export function FeeCollectForm() {
   const [successReceipt, setSuccessReceipt] = React.useState<string | null>(null);
   const [showConfetti, setShowConfetti] = React.useState(false);
 
+  // Accounts (payment buckets)
+  const [accounts, setAccounts] = React.useState<Account[]>([]);
+  React.useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/accounts");
+        if (res.ok) setAccounts((await res.json()) as Account[]);
+      } catch {
+        // silent; account select shows empty list
+      }
+    })();
+  }, []);
+  const accountNameById = React.useMemo(
+    () => new Map(accounts.map((a) => [a.id, a.name])),
+    [accounts],
+  );
+
   const {
     register,
     handleSubmit,
@@ -297,15 +310,15 @@ export function FeeCollectForm() {
     defaultValues: {
       student_id: "",
       fee_config_id: "",
+      account_id: "",
       paid_amount: 0,
       discount_amount: 0,
       discount_reason: "",
-      payment_mode: undefined,
     },
   });
 
   const discountAmount = watch("discount_amount") ?? 0;
-  const paymentModeValue = watch("payment_mode");
+  const accountIdValue = watch("account_id");
 
   // ── Student search ──────────────────────────────────────────────────────────
 
@@ -342,6 +355,25 @@ export function FeeCollectForm() {
     }
   }
 
+  function handleClearSearch() {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    setSearchTerm("");
+    setSearchResults([]);
+    setSelectedStudent(null);
+    setFeeConfig(null);
+    setSummary(null);
+    setHistory([]);
+    setSuccessReceipt(null);
+    reset({
+      student_id: "",
+      fee_config_id: "",
+      account_id: "",
+      paid_amount: 0,
+      discount_amount: 0,
+      discount_reason: "",
+    });
+  }
+
   async function handleSelectStudent(student: Student) {
     setSelectedStudent(student);
     setSearchResults([]);
@@ -353,10 +385,10 @@ export function FeeCollectForm() {
     reset({
       student_id: student.id,
       fee_config_id: "",
+      account_id: "",
       paid_amount: 0,
       discount_amount: 0,
       discount_reason: "",
-      payment_mode: undefined,
     });
 
     await loadStudentData(student);
@@ -490,10 +522,10 @@ export function FeeCollectForm() {
         reset({
           student_id: selectedStudent.id,
           fee_config_id: feeConfig.id,
+          account_id: "",
           paid_amount: 0,
           discount_amount: 0,
           discount_reason: "",
-          payment_mode: undefined,
         });
       }
     } catch (err) {
@@ -531,12 +563,22 @@ export function FeeCollectForm() {
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-tertiary pointer-events-none" />
             <Input
               id="student-search"
-              className="pl-9 transition-all focus-visible:ring-brand/30 focus-visible:border-brand"
+              className="pl-9 pr-9 transition-all focus-visible:ring-brand/30 focus-visible:border-brand"
               placeholder="Search by name or admission number..."
               value={searchTerm}
               onChange={handleSearchChange}
               autoComplete="off"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={handleClearSearch}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-full text-text-tertiary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            )}
             {/* Dropdown results */}
             <AnimatePresence>
               {(isSearching || searchResults.length > 0) && (
@@ -739,7 +781,7 @@ export function FeeCollectForm() {
               <div className="rounded-xl border border-border-light bg-surface overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-3 border-b border-border-light bg-surface-secondary/50">
-                  <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wide">
+                  <h2 className="text-sm font-semibold text-text-primary tracking-wide">
                     Record Payment
                   </h2>
                   <span className="text-xs font-medium text-danger bg-danger-light rounded-full px-2.5 py-0.5">
@@ -801,41 +843,41 @@ export function FeeCollectForm() {
                       </div>
                     </div>
 
-                    {/* Payment Mode + Date side by side */}
+                    {/* Account + Date side by side */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="grid gap-1.5">
-                        <Label htmlFor="payment_mode" className="text-xs font-medium text-text-secondary">
-                          Payment Mode <span className="text-destructive">*</span>
+                        <Label htmlFor="account_id" className="text-xs font-medium text-text-secondary">
+                          Account <span className="text-destructive">*</span>
                         </Label>
                         <Select
-                          value={paymentModeValue ?? ""}
+                          value={accountIdValue ?? ""}
                           onValueChange={(val) => {
                             if (val != null) {
-                              setValue(
-                                "payment_mode",
-                                val as CollectFeeInput["payment_mode"],
-                                { shouldValidate: true }
-                              );
+                              setValue("account_id", val, { shouldValidate: true });
                             }
                           }}
                         >
                           <SelectTrigger
-                            id="payment_mode"
+                            id="account_id"
                             className="w-full !h-11"
-                            aria-invalid={!!errors.payment_mode}
+                            aria-invalid={!!errors.account_id}
                           >
-                            <SelectValue placeholder="Select mode" />
+                            <span>
+                              {accountIdValue
+                                ? accountNameById.get(accountIdValue) ?? "Select account"
+                                : "Select account"}
+                            </span>
                           </SelectTrigger>
                           <SelectContent>
-                            {PAYMENT_MODES.map((m) => (
-                              <SelectItem key={m.value} value={m.value}>
-                                {m.label}
+                            {accounts.map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
-                        {errors.payment_mode && (
-                          <p className="text-xs text-destructive">{errors.payment_mode.message}</p>
+                        {errors.account_id && (
+                          <p className="text-xs text-destructive">{errors.account_id.message}</p>
                         )}
                       </div>
 
@@ -964,7 +1006,7 @@ export function FeeCollectForm() {
                   <TableRow>
                     <TableHead>Receipt No</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Mode</TableHead>
+                    <TableHead>Account</TableHead>
                     <TableHead className="text-right">Paid</TableHead>
                     <TableHead className="text-right">Discount</TableHead>
                     <TableHead className="w-8"></TableHead>
@@ -1012,8 +1054,8 @@ export function FeeCollectForm() {
                         <TableCell className="text-text-secondary text-sm">
                           {formatDate(tx.payment_date)}
                         </TableCell>
-                        <TableCell>
-                          <StatusBadge variant={paymentModeVariant(tx.payment_mode)} />
+                        <TableCell className="text-text-secondary text-sm">
+                          {accountNameById.get(tx.account_id) ?? "—"}
                         </TableCell>
                         <TableCell className="text-right font-semibold text-text-primary">
                           {formatINR(tx.paid_amount)}

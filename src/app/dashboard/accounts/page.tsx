@@ -10,7 +10,7 @@ export const metadata = {
 export default function AccountsPage() {
   return (
     <>
-      <DashboardHeader title="Accounts & Ledger" />
+      <DashboardHeader title="Accounts" />
       <div className="p-6">
         <AccountsView />
       </div>

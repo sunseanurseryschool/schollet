@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Student, Grade, Section, StudentStatus } from "@/types/database";
-import type {
-  CreateStudentInput,
-  UpdateStudentInput,
-  StudentListQuery,
+import {
+  normalizeStudentForSubmit,
+  type CreateStudentInput,
+  type UpdateStudentInput,
+  type StudentListQuery,
 } from "@/lib/schemas/student";
 
 export interface StudentListResult {
@@ -46,7 +47,7 @@ export async function listStudents(
     if (search && search.trim().length > 0) {
       const term = `%${search.trim()}%`;
       builder = builder.or(
-        `name.ilike.${term},admission_no.ilike.${term},parent_name.ilike.${term}`
+        `name.ilike.${term},admission_no.ilike.${term},father_name.ilike.${term},mother_name.ilike.${term},father_mobile.ilike.${term},mother_mobile.ilike.${term}`,
       );
     }
 
@@ -82,10 +83,13 @@ export async function getStudentById(
       .from("students")
       .select("*")
       .eq("id", id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       return { data: null, error: error.message };
+    }
+    if (!data) {
+      return { data: null, error: "Student not found" };
     }
     return { data: data as Student, error: null };
   } catch (err) {
@@ -139,13 +143,8 @@ export async function createStudent(
     const { data, error } = await supabase
       .from("students")
       .insert({
+        ...normalizeStudentForSubmit(input),
         admission_no: admissionNo,
-        name: input.name,
-        grade: input.grade,
-        section: input.section,
-        status: input.status,
-        parent_name: input.parent_name,
-        parent_phone: input.parent_phone,
       })
       .select()
       .single();
@@ -184,12 +183,20 @@ export async function updateStudent(
       }
     }
 
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    for (const [key, value] of Object.entries(input)) {
+      if (value === "") {
+        patch[key] = null;
+      } else if (typeof value === "number" && Number.isNaN(value)) {
+        patch[key] = null;
+      } else {
+        patch[key] = value;
+      }
+    }
+
     const { data, error } = await supabase
       .from("students")
-      .update({
-        ...input,
-        updated_at: new Date().toISOString(),
-      })
+      .update(patch)
       .eq("id", id)
       .select()
       .single();

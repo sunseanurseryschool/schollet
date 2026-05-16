@@ -174,7 +174,7 @@ export function ExpenseList() {
         const body = (await res.json()) as { error?: string };
         throw new Error(body.error ?? "Delete failed");
       }
-      toast.success("Expense deleted and journal entry reversed");
+      toast.success("Expense deleted");
       setDeleteTarget(null);
       void fetchExpenses();
     } catch (err) {
@@ -549,8 +549,7 @@ export function ExpenseList() {
                 </div>
               )}
               <p className="text-xs text-text-secondary">
-                This will reverse the corresponding journal entry. This action
-                cannot be undone.
+                This action cannot be undone.
               </p>
             </motion.div>
             <DialogFooter>

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { createExpenseEntry } from "@/services/ledger";
 import type { InventoryItem, InventoryTransaction } from "@/types/database";
 import type {
   CreateInventoryItemInput,
@@ -205,11 +204,12 @@ export async function recordInventoryTransaction(
       newQuantity = currentItem.quantity - input.quantity;
     }
 
-    // Insert the transaction record
+    // Insert the transaction record (account_id required for IN; null for OUT)
     const { data: txnData, error: txnError } = await supabase
       .from("inventory_transactions")
       .insert({
         item_id: itemId,
+        account_id: input.type === "IN" ? input.account_id : null,
         type: input.type,
         quantity: input.quantity,
         description: input.description,
@@ -227,7 +227,6 @@ export async function recordInventoryTransaction(
 
     const transaction = txnData as InventoryTransaction;
 
-    // Update the item quantity
     const { data: updatedData, error: updateError } = await supabase
       .from("inventory_items")
       .update({ quantity: newQuantity })
@@ -243,25 +242,6 @@ export async function recordInventoryTransaction(
     }
 
     const updatedItem = updatedData as InventoryItem;
-
-    // For IN transactions that are purchases: create ledger journal entry
-    if (input.type === "IN" && input.is_purchase && input.amount != null && input.amount > 0) {
-      const ledgerResult = await createExpenseEntry({
-        expenseId: transaction.id,
-        amount: input.amount,
-        isInventory: true,
-        date: input.date,
-        description: input.description || `Inventory purchase: ${currentItem.name} x${input.quantity}`,
-      });
-
-      if (ledgerResult.error) {
-        // Log the ledger failure but do not roll back the stock movement.
-        // Financial reconciliation can be done manually; stock accuracy is the priority.
-        console.error(
-          `Ledger entry failed for inventory transaction ${transaction.id}: ${ledgerResult.error}`
-        );
-      }
-    }
 
     return {
       data: { transaction, updatedItem },

@@ -143,24 +143,6 @@ export function StatusBadge({ variant, label, className }: StatusBadgeProps) {
   );
 }
 
-/** Helper to map payment_mode DB values to StatusBadge variants */
-export function paymentModeVariant(
-  mode: string
-): StatusVariant {
-  switch (mode) {
-    case "CASH":
-      return "cash";
-    case "UPI":
-      return "upi";
-    case "BANK_TRANSFER":
-      return "bank";
-    case "CHEQUE":
-      return "cheque";
-    default:
-      return "cash";
-  }
-}
-
 /** Helper to map student status to StatusBadge variant */
 export function studentStatusVariant(
   status: string

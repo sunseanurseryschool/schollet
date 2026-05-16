@@ -31,9 +31,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { month, payment_date } = parsed.data;
+    const { account_id, month, payment_date } = parsed.data;
 
-    const result = await processBulkSalary(user.id, month, payment_date);
+    const result = await processBulkSalary(user.id, account_id, month, payment_date);
 
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 500 });

@@ -10,6 +10,7 @@ import {
 describe("processSalarySchema", () => {
   const validInput = {
     staff_id: "staff-abc",
+    account_id: "11111111-1111-4111-9111-111111111111",
     month: "2025-04",
     amount: 35000,
   };
@@ -140,13 +141,16 @@ describe("processSalarySchema", () => {
 // ─── bulkSalarySchema ─────────────────────────────────────────────────────────
 
 describe("bulkSalarySchema", () => {
-  it("accepts valid month", () => {
-    const result = bulkSalarySchema.safeParse({ month: "2025-04" });
+  const account_id = "11111111-1111-4111-9111-111111111111";
+
+  it("accepts valid month with account_id", () => {
+    const result = bulkSalarySchema.safeParse({ account_id, month: "2025-04" });
     expect(result.success).toBe(true);
   });
 
   it("accepts month with optional payment_date", () => {
     const result = bulkSalarySchema.safeParse({
+      account_id,
       month: "2025-04",
       payment_date: "2025-04-28",
     });
@@ -157,17 +161,23 @@ describe("bulkSalarySchema", () => {
   });
 
   it("rejects missing month", () => {
-    const result = bulkSalarySchema.safeParse({});
+    const result = bulkSalarySchema.safeParse({ account_id });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects missing account_id", () => {
+    const result = bulkSalarySchema.safeParse({ month: "2025-04" });
     expect(result.success).toBe(false);
   });
 
   it("rejects month in wrong format", () => {
-    const result = bulkSalarySchema.safeParse({ month: "April 2025" });
+    const result = bulkSalarySchema.safeParse({ account_id, month: "April 2025" });
     expect(result.success).toBe(false);
   });
 
   it("rejects payment_date in non-ISO format", () => {
     const result = bulkSalarySchema.safeParse({
+      account_id,
       month: "2025-04",
       payment_date: "04/28/2025",
     });

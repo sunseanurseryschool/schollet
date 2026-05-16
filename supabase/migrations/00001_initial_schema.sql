@@ -49,22 +49,82 @@ CREATE TABLE staff (
 CREATE TYPE student_status AS ENUM ('active', 'inactive', 'transferred');
 CREATE TYPE grade_enum AS ENUM ('PreKG', 'LKG', 'UKG', '1', '2', '3', '4', '5');
 CREATE TYPE section_enum AS ENUM ('A', 'B', 'C');
+CREATE TYPE gender_enum AS ENUM ('male', 'female', 'other');
+CREATE TYPE blood_group_enum AS ENUM ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown');
 
 CREATE TABLE students (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   admission_no TEXT NOT NULL UNIQUE,
+  -- Basic
   name TEXT NOT NULL,
+  gender gender_enum,
+  date_of_birth DATE,
+  blood_group blood_group_enum,
+  nationality TEXT,
+  religion TEXT,
+  community TEXT,
+  caste TEXT,
+  aadhaar_no TEXT,
   grade grade_enum NOT NULL,
   section section_enum NOT NULL,
   status student_status NOT NULL DEFAULT 'active',
-  parent_name TEXT NOT NULL DEFAULT '',
-  parent_phone TEXT NOT NULL DEFAULT '',
+  -- Father
+  father_name TEXT,
+  father_occupation TEXT,
+  father_company TEXT,
+  father_mobile TEXT,
+  father_email TEXT,
+  father_annual_income NUMERIC(12,2),
+  -- Mother
+  mother_name TEXT,
+  mother_occupation TEXT,
+  mother_company TEXT,
+  mother_mobile TEXT,
+  mother_email TEXT,
+  mother_annual_income NUMERIC(12,2),
+  -- Guardian (optional)
+  guardian_name TEXT,
+  guardian_relationship TEXT,
+  guardian_mobile TEXT,
+  guardian_address TEXT,
+  -- Contact + Address
+  address_line TEXT,
+  city TEXT,
+  state TEXT,
+  pin_code TEXT,
+  emergency_contact TEXT,
+  alternate_phone TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_students_grade ON students(grade);
 CREATE INDEX idx_students_status ON students(status);
+
+-- =============================================
+-- ACCOUNTS (payment buckets — Cash, UPI, Bank, etc.)
+-- =============================================
+
+CREATE TABLE accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  is_online BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Manual adjustments to account balances (opening balance, corrections, petty
+-- cash deposits, etc.). Immutable for audit integrity.
+-- amount > 0 = increase, amount < 0 = decrease.
+CREATE TABLE account_adjustments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id),
+  amount NUMERIC(12,2) NOT NULL CHECK (amount <> 0),
+  reason TEXT NOT NULL,
+  created_by UUID NOT NULL REFERENCES staff(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_account_adjustments_account ON account_adjustments(account_id);
 
 -- =============================================
 -- FEE CONFIGURATION
@@ -90,17 +150,15 @@ CREATE TABLE fee_heads (
 -- FEE TRANSACTIONS
 -- =============================================
 
-CREATE TYPE payment_mode AS ENUM ('CASH', 'UPI', 'BANK_TRANSFER', 'CHEQUE');
-
 CREATE TABLE fee_transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID NOT NULL REFERENCES students(id),
   fee_config_id UUID NOT NULL REFERENCES fee_configs(id),
+  account_id UUID NOT NULL REFERENCES accounts(id),
   total_fee NUMERIC(12,2) NOT NULL,
   paid_amount NUMERIC(12,2) NOT NULL,
   discount_amount NUMERIC(12,2) NOT NULL DEFAULT 0,
   discount_reason TEXT,
-  payment_mode payment_mode NOT NULL,
   received_by UUID NOT NULL REFERENCES staff(id),
   receipt_no TEXT NOT NULL UNIQUE,
   payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -109,45 +167,6 @@ CREATE TABLE fee_transactions (
 
 CREATE INDEX idx_fee_txn_student ON fee_transactions(student_id);
 CREATE INDEX idx_fee_txn_date ON fee_transactions(payment_date);
-
--- =============================================
--- ACCOUNTS & LEDGER (CORE ENGINE)
--- =============================================
-
-CREATE TYPE account_type AS ENUM ('INCOME', 'EXPENSE', 'ASSET', 'LIABILITY');
-CREATE TYPE reference_type AS ENUM ('FEE', 'SALARY', 'EXPENSE', 'OPENING_BALANCE');
-
-CREATE TABLE accounts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name TEXT NOT NULL,
-  type account_type NOT NULL,
-  code TEXT NOT NULL UNIQUE,
-  is_system BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE journal_entries (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  date DATE NOT NULL DEFAULT CURRENT_DATE,
-  reference_type reference_type NOT NULL,
-  reference_id UUID NOT NULL,
-  description TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE journal_lines (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  journal_id UUID NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
-  account_id UUID NOT NULL REFERENCES accounts(id),
-  debit NUMERIC(12,2) NOT NULL DEFAULT 0,
-  credit NUMERIC(12,2) NOT NULL DEFAULT 0,
-  CONSTRAINT debit_or_credit CHECK (
-    (debit > 0 AND credit = 0) OR (credit > 0 AND debit = 0)
-  )
-);
-
-CREATE INDEX idx_journal_date ON journal_entries(date);
-CREATE INDEX idx_journal_ref ON journal_entries(reference_type, reference_id);
 
 -- =============================================
 -- INVENTORY
@@ -164,14 +183,19 @@ CREATE TABLE inventory_items (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- account_id is required only for IN (purchase) transactions; OUT (issue) has no money flow.
 CREATE TABLE inventory_transactions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   item_id UUID NOT NULL REFERENCES inventory_items(id),
+  account_id UUID REFERENCES accounts(id),
   type inventory_txn_type NOT NULL,
   quantity INTEGER NOT NULL,
   description TEXT NOT NULL DEFAULT '',
   date DATE NOT NULL DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT account_required_for_purchase CHECK (
+    (type = 'IN' AND account_id IS NOT NULL) OR type = 'OUT'
+  )
 );
 
 -- =============================================
@@ -180,6 +204,7 @@ CREATE TABLE inventory_transactions (
 
 CREATE TABLE expenses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  account_id UUID NOT NULL REFERENCES accounts(id),
   amount NUMERIC(12,2) NOT NULL,
   category TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -195,6 +220,7 @@ CREATE TABLE expenses (
 CREATE TABLE salary_payments (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   staff_id UUID NOT NULL REFERENCES staff(id),
+  account_id UUID NOT NULL REFERENCES accounts(id),
   amount NUMERIC(12,2) NOT NULL,
   month TEXT NOT NULL,
   payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -310,20 +336,13 @@ WHERE r.name = 'Librarian'
   AND p.code IN ('CAN_MANAGE_INVENTORY');
 
 -- =============================================
--- SEED DATA: System Accounts (Chart of Accounts)
+-- SEED DATA: Default Accounts
 -- =============================================
 
-INSERT INTO accounts (name, type, code, is_system) VALUES
-  ('Fee Income', 'INCOME', 'INC-001', TRUE),
-  ('Other Income', 'INCOME', 'INC-002', TRUE),
-  ('Salary Expense', 'EXPENSE', 'EXP-001', TRUE),
-  ('General Expense', 'EXPENSE', 'EXP-002', TRUE),
-  ('Inventory Expense', 'EXPENSE', 'EXP-003', TRUE),
-  ('Cash', 'ASSET', 'AST-001', TRUE),
-  ('Bank', 'ASSET', 'AST-002', TRUE),
-  ('Accounts Receivable', 'ASSET', 'AST-003', TRUE),
-  ('Accounts Payable', 'LIABILITY', 'LIA-001', TRUE),
-  ('Opening Balance Equity', 'LIABILITY', 'LIA-002', TRUE);
+INSERT INTO accounts (name, is_online) VALUES
+  ('Cash', FALSE),
+  ('UPI', TRUE),
+  ('Bank', TRUE);
 
 -- =============================================
 -- ROW LEVEL SECURITY
@@ -335,8 +354,7 @@ ALTER TABLE fee_configs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fee_heads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fee_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_entries ENABLE ROW LEVEL SECURITY;
-ALTER TABLE journal_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_adjustments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inventory_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
@@ -371,12 +389,11 @@ CREATE POLICY "Authenticated users can delete" ON fee_transactions FOR DELETE TO
 
 CREATE POLICY "Authenticated users can read" ON accounts FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can insert" ON accounts FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can update" ON accounts FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can delete" ON accounts FOR DELETE TO authenticated USING (true);
 
-CREATE POLICY "Authenticated users can read" ON journal_entries FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can insert" ON journal_entries FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated users can read" ON journal_lines FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Authenticated users can insert" ON journal_lines FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can read" ON account_adjustments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Authenticated users can insert" ON account_adjustments FOR INSERT TO authenticated WITH CHECK (true);
 
 CREATE POLICY "Authenticated users can read" ON inventory_items FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can insert" ON inventory_items FOR INSERT TO authenticated WITH CHECK (true);
@@ -387,6 +404,7 @@ CREATE POLICY "Authenticated users can insert" ON inventory_transactions FOR INS
 
 CREATE POLICY "Authenticated users can read" ON expenses FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can insert" ON expenses FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can delete" ON expenses FOR DELETE TO authenticated USING (true);
 
 CREATE POLICY "Authenticated users can read" ON audit_logs FOR SELECT TO authenticated USING (true);
 CREATE POLICY "Authenticated users can insert" ON audit_logs FOR INSERT TO authenticated WITH CHECK (true);

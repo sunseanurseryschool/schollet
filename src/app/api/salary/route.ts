@@ -76,11 +76,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { staff_id, month, amount, notes, payment_date } = parsed.data;
+    const { staff_id, account_id, month, amount, notes, payment_date } = parsed.data;
 
     const result = await processSalary(
       user.id,
       staff_id,
+      account_id,
       month,
       amount,
       notes,
