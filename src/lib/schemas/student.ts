@@ -135,6 +135,7 @@ export const createStudentSchema = z.object({
   grade: z.enum(GRADE_VALUES, { message: "Select a valid grade" }),
   section: z.enum(SECTION_VALUES, { message: "Select a valid section" }),
   status: z.enum(STUDENT_STATUS_VALUES, { message: "Select a valid status" }),
+  fee_config_id: z.string().uuid("Select a fee structure"),
   // Father
   father_name: optionalText(100, "Father name"),
   father_occupation: optionalText(100, "Occupation"),
@@ -207,6 +208,7 @@ export function normalizeStudentForSubmit(
     grade: input.grade,
     section: input.section,
     status: input.status,
+    fee_config_id: input.fee_config_id,
     father_name: blank(input.father_name),
     father_occupation: blank(input.father_occupation),
     father_company: blank(input.father_company),

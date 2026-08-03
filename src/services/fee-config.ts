@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import type { FeeConfig, FeeHead, Grade } from "@/types/database";
+import type { FeeConfig, FeeHead } from "@/types/database";
 import type {
   CreateFeeConfigInput,
   UpdateFeeConfigInput,
@@ -60,47 +60,25 @@ export async function getFeeConfigById(
   }
 }
 
-export async function getFeeConfigByGradeAndYear(
-  grade: Grade,
-  academic_year: string
-): Promise<ServiceResult<FeeConfigWithHeads | null>> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("fee_configs")
-      .select("*, fee_heads(*)")
-      .eq("grade", grade)
-      .eq("academic_year", academic_year)
-      .maybeSingle();
-
-    if (error) {
-      return { data: null, error: error.message };
-    }
-    return { data: data as FeeConfigWithHeads | null, error: null };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { data: null, error: message };
-  }
-}
-
 export async function createFeeConfig(
   input: CreateFeeConfigInput
 ): Promise<ServiceResult<FeeConfigWithHeads>> {
   try {
     const supabase = await createClient();
 
-    // Check uniqueness: one config per grade per academic year
+    // Check uniqueness: one config per grade + academic year + title
     const { data: existing } = await supabase
       .from("fee_configs")
       .select("id")
       .eq("grade", input.grade)
       .eq("academic_year", input.academic_year)
+      .eq("title", input.title)
       .maybeSingle();
 
     if (existing) {
       return {
         data: null,
-        error: `A fee config for Grade ${input.grade} in ${input.academic_year} already exists`,
+        error: `A fee config titled "${input.title}" for Grade ${input.grade} in ${input.academic_year} already exists`,
       };
     }
 
@@ -110,6 +88,7 @@ export async function createFeeConfig(
       .insert({
         grade: input.grade,
         academic_year: input.academic_year,
+        title: input.title,
         total_fee: input.total_fee,
       })
       .select()
@@ -156,19 +135,20 @@ export async function updateFeeConfig(
   try {
     const supabase = await createClient();
 
-    // Check uniqueness: ensure no other config has same grade+year
+    // Check uniqueness: ensure no other config has same grade+year+title
     const { data: conflict } = await supabase
       .from("fee_configs")
       .select("id")
       .eq("grade", input.grade)
       .eq("academic_year", input.academic_year)
+      .eq("title", input.title)
       .neq("id", id)
       .maybeSingle();
 
     if (conflict) {
       return {
         data: null,
-        error: `A fee config for Grade ${input.grade} in ${input.academic_year} already exists`,
+        error: `A fee config titled "${input.title}" for Grade ${input.grade} in ${input.academic_year} already exists`,
       };
     }
 
@@ -178,6 +158,7 @@ export async function updateFeeConfig(
       .update({
         grade: input.grade,
         academic_year: input.academic_year,
+        title: input.title,
         total_fee: input.total_fee,
       })
       .eq("id", id)

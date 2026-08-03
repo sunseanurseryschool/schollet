@@ -131,7 +131,7 @@ export function FeeConfigList() {
         throw new Error(body.error ?? "Delete failed");
       }
       toast.success(
-        `Fee config for Grade ${deleteTarget.grade} (${deleteTarget.academic_year}) deleted`,
+        `Fee config "${deleteTarget.title}" for Grade ${deleteTarget.grade} (${deleteTarget.academic_year}) deleted`,
       );
       setDeleteTarget(null);
       void fetchConfigs();
@@ -249,6 +249,7 @@ export function FeeConfigList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Grade</TableHead>
+                <TableHead>Title</TableHead>
                 <TableHead>Academic Year</TableHead>
                 <TableHead>Fee Heads</TableHead>
                 <TableHead className="text-right">Total Fee</TableHead>
@@ -259,7 +260,7 @@ export function FeeConfigList() {
               {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <TableRow key={i} className="border-b border-slate-50">
-                    {Array.from({ length: 5 }).map((__, j) => (
+                    {Array.from({ length: 6 }).map((__, j) => (
                       <TableCell key={j}>
                         <ShimmerSkeleton className="h-4 w-full" />
                       </TableCell>
@@ -268,7 +269,7 @@ export function FeeConfigList() {
                 ))
               ) : configs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-48 text-center">
+                  <TableCell colSpan={6} className="h-48 text-center">
                     <motion.div
                       initial={{ opacity: 0, y: 12, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -309,6 +310,9 @@ export function FeeConfigList() {
                   >
                     <TableCell className="font-medium">
                       {config.grade}
+                    </TableCell>
+                    <TableCell className="text-text-primary">
+                      {config.title}
                     </TableCell>
                     <TableCell className="text-text-secondary">
                       {config.academic_year}
@@ -386,9 +390,10 @@ export function FeeConfigList() {
               <DialogTitle>Delete Fee Configuration</DialogTitle>
             </DialogHeader>
             <p className="text-sm text-text-secondary">
-              Are you sure you want to delete the fee configuration for{" "}
+              Are you sure you want to delete the fee configuration{" "}
               <span className="font-semibold text-text-primary">
-                Grade {deleteTarget?.grade} ({deleteTarget?.academic_year})
+                {deleteTarget?.title} — Grade {deleteTarget?.grade} (
+                {deleteTarget?.academic_year})
               </span>
               ? This will also delete all associated fee heads and may affect
               existing fee transactions.

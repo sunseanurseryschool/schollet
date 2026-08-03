@@ -109,6 +109,7 @@ export function FeeConfigFormDialog({
     resolver: zodResolver(createFeeConfigSchema),
     defaultValues: {
       grade: undefined,
+      title: "",
       academic_year: "",
       total_fee: 0,
       fee_heads: DEFAULT_HEADS,
@@ -133,6 +134,7 @@ export function FeeConfigFormDialog({
     if (open && config) {
       reset({
         grade: config.grade,
+        title: config.title,
         academic_year: config.academic_year,
         total_fee: config.total_fee,
         fee_heads:
@@ -143,6 +145,7 @@ export function FeeConfigFormDialog({
     } else if (open && !config) {
       reset({
         grade: undefined,
+        title: "",
         academic_year: "",
         total_fee: 0,
         fee_heads: DEFAULT_HEADS,
@@ -250,6 +253,33 @@ export function FeeConfigFormDialog({
                   {errors.grade && (
                     <p className="text-xs text-destructive">
                       {errors.grade.message}
+                    </p>
+                  )}
+                </motion.div>
+
+                {/* Title */}
+                <motion.div
+                  variants={fieldVariants}
+                  custom={1}
+                  className="grid gap-1.5"
+                >
+                  <Label htmlFor="title">
+                    Title <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g. Regular, RTE Concession, Staff Ward"
+                    aria-invalid={!!errors.title}
+                    className="transition-all duration-200 focus:ring-2 focus:ring-brand/30 focus:border-brand"
+                    {...register("title")}
+                  />
+                  <p className="text-xs text-text-tertiary">
+                    Name this fee structure — a grade can have several (e.g.
+                    Regular and Concession).
+                  </p>
+                  {errors.title && (
+                    <p className="text-xs text-destructive">
+                      {errors.title.message}
                     </p>
                   )}
                 </motion.div>

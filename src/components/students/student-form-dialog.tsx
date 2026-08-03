@@ -30,7 +30,9 @@ import {
   type CreateStudentInput,
 } from "@/lib/schemas/student";
 import { GRADES, SECTIONS } from "@/lib/constants";
+import { formatINR } from "@/lib/format";
 import type { Student } from "@/types/database";
+import type { FeeConfigWithHeads } from "@/services/fee-config";
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
@@ -91,6 +93,7 @@ function emptyDefaults(): CreateStudentInput {
     grade: undefined as unknown as CreateStudentInput["grade"],
     section: undefined as unknown as CreateStudentInput["section"],
     status: "active",
+    fee_config_id: "",
     father_name: "",
     father_occupation: "",
     father_company: "",
@@ -131,6 +134,7 @@ function fromStudent(student: Student): CreateStudentInput {
     grade: student.grade,
     section: student.section,
     status: student.status,
+    fee_config_id: student.fee_config_id ?? "",
     father_name: student.father_name ?? "",
     father_occupation: student.father_occupation ?? "",
     father_company: student.father_company ?? "",
@@ -183,6 +187,15 @@ export function StudentFormDialog({
 }: StudentFormDialogProps) {
   const isEditing = student != null;
   const [isPending, setIsPending] = React.useState(false);
+  const [feeConfigs, setFeeConfigs] = React.useState<FeeConfigWithHeads[]>([]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    fetch("/api/fee-configs")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setFeeConfigs(data as FeeConfigWithHeads[]))
+      .catch(() => setFeeConfigs([]));
+  }, [open]);
 
   const {
     register,
@@ -207,7 +220,33 @@ export function StudentFormDialog({
   const genderValue = watch("gender");
   const bloodGroupValue = watch("blood_group");
   const dobValue = watch("date_of_birth");
+  const feeConfigValue = watch("fee_config_id");
   const ageDisplay = computeAge(dobValue ?? "");
+
+  // Fee structures available for the selected grade, newest year first
+  const gradeConfigs = React.useMemo(
+    () =>
+      feeConfigs
+        .filter((c) => c.grade === gradeValue)
+        .sort(
+          (a, b) =>
+            b.academic_year.localeCompare(a.academic_year) ||
+            a.title.localeCompare(b.title),
+        ),
+    [feeConfigs, gradeValue],
+  );
+  const selectedConfig = feeConfigs.find((c) => c.id === feeConfigValue) ?? null;
+
+  // Clear the fee selection if it belongs to a different grade
+  React.useEffect(() => {
+    if (selectedConfig && selectedConfig.grade !== gradeValue) {
+      setValue("fee_config_id", "", { shouldValidate: false });
+    }
+  }, [gradeValue, selectedConfig, setValue]);
+
+  function feeConfigLabel(c: FeeConfigWithHeads): string {
+    return `${c.title} · ${c.academic_year} · ${formatINR(c.total_fee)}`;
+  }
 
   async function onSubmit(data: CreateStudentInput) {
     setIsPending(true);
@@ -459,6 +498,56 @@ export function StudentFormDialog({
                     {errors.section && (
                       <p className="text-xs text-destructive">
                         {errors.section.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="fee_config_id">
+                      Fee Structure <span className="text-destructive">*</span>
+                    </Label>
+                    <Select
+                      value={feeConfigValue || ""}
+                      onValueChange={(val) => {
+                        if (val != null) {
+                          setValue("fee_config_id", val, {
+                            shouldValidate: true,
+                          });
+                        }
+                      }}
+                    >
+                      <SelectTrigger
+                        id="fee_config_id"
+                        className="w-full"
+                        aria-invalid={!!errors.fee_config_id}
+                        disabled={!gradeValue}
+                      >
+                        <span>
+                          {selectedConfig
+                            ? feeConfigLabel(selectedConfig)
+                            : gradeValue
+                              ? "Select fee structure"
+                              : "Select a grade first"}
+                        </span>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {gradeConfigs.length === 0 ? (
+                          <div className="px-3 py-2 text-xs text-text-secondary">
+                            No fee configs for Grade {gradeValue}. Create one
+                            under Fee Config first.
+                          </div>
+                        ) : (
+                          gradeConfigs.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {feeConfigLabel(c)}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {errors.fee_config_id && (
+                      <p className="text-xs text-destructive">
+                        {errors.fee_config_id.message}
                       </p>
                     )}
                   </div>

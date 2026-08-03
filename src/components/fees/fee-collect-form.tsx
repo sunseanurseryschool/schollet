@@ -433,7 +433,12 @@ export function FeeCollectForm() {
       const cfgRes = await fetch(`/api/fee-configs?${cfgParams.toString()}`);
       if (cfgRes.ok) {
         const allConfigs = (await cfgRes.json()) as FeeConfigWithHeads[];
-        const matched = allConfigs.find((c) => c.grade === student.grade) ?? null;
+        // Prefer the student's assigned fee structure; fall back to a
+        // grade match for students without an assignment.
+        const matched =
+          allConfigs.find((c) => c.id === student.fee_config_id) ??
+          allConfigs.find((c) => c.grade === student.grade) ??
+          null;
         setFeeConfig(matched);
 
         if (matched) {

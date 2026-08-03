@@ -16,6 +16,11 @@ export const feeHeadInputSchema = z.object({
 export const createFeeConfigSchema = z
   .object({
     grade: z.enum(GRADE_VALUES, { message: "Select a valid grade" }),
+    title: z
+      .string()
+      .min(1, "Title is required")
+      .max(60, "Title must be 60 characters or fewer")
+      .trim(),
     academic_year: z
       .string()
       .min(1, "Academic year is required")
