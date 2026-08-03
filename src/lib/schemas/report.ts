@@ -32,13 +32,6 @@ export const expenseReportQuerySchema = dateRangeSchema.extend({
   category: z.enum(EXPENSE_CATEGORY_VALUES).optional(),
 });
 
-// RPT-007: Salary report query schema — month is optional (YYYY-MM format)
-export const salaryReportQuerySchema = z.object({
-  month: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/, "month must be YYYY-MM")
-    .optional(),
-});
 
 // RPT-008: Inventory report has no query params
 export const inventoryReportQuerySchema = z.object({});
@@ -49,5 +42,4 @@ export type StudentDuesQuery = z.infer<typeof studentDuesQuerySchema>;
 export type CollectionQuery = z.infer<typeof collectionQuerySchema>;
 export type DiscountQuery = z.infer<typeof discountQuerySchema>;
 export type ExpenseReportQuery = z.infer<typeof expenseReportQuerySchema>;
-export type SalaryReportQuery = z.infer<typeof salaryReportQuerySchema>;
 export type InventoryReportQuery = z.infer<typeof inventoryReportQuerySchema>;

@@ -59,6 +59,7 @@ export interface Student {
   pin_code: string | null;
   emergency_contact: string | null;
   alternate_phone: string | null;
+  fee_config_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +68,7 @@ export interface FeeConfig {
   id: string;
   grade: Grade;
   academic_year: string;
+  title: string;
   total_fee: number;
   created_at: string;
 }
@@ -114,7 +116,6 @@ export interface Staff {
   name: string;
   email: string;
   role_id: string;
-  salary: number;
   created_at: string;
 }
 
@@ -180,15 +181,4 @@ export interface ReasonTag {
   id: string;
   name: string;
   type: ReasonTagType;
-}
-
-export interface SalaryPayment {
-  id: string;
-  staff_id: string;
-  account_id: string;
-  amount: number;
-  month: string;
-  payment_date: string;
-  notes: string;
-  created_at: string;
 }

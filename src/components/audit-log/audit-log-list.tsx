@@ -12,7 +12,6 @@ import {
   ActivityIcon,
   BanIcon,
   IndianRupeeIcon,
-  WalletIcon,
   SlidersHorizontalIcon,
   ArrowDownIcon,
   ArrowUpIcon,
@@ -91,13 +90,6 @@ const ACTION_CONFIG: Record<string, ActionConfig> = {
     bg: "bg-success-light",
     dot: "bg-success",
     Icon: IndianRupeeIcon,
-  },
-  PROCESS_SALARY: {
-    label: "SALARY",
-    color: "text-rose-700 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-950/40",
-    dot: "bg-rose-500",
-    Icon: WalletIcon,
   },
   CREATE_ACCOUNT: {
     label: "ACCOUNT CREATE",

@@ -10,7 +10,6 @@ import { StudentDuesTab } from "./tabs/student-dues-tab";
 import { CollectionTab } from "./tabs/collection-tab";
 import { DiscountTab } from "./tabs/discount-tab";
 import { ExpenseReportTab } from "./tabs/expense-report-tab";
-import { SalaryReportTab } from "./tabs/salary-report-tab";
 import { InventoryReportTab } from "./tabs/inventory-report-tab";
 
 const REPORT_TABS = [
@@ -19,7 +18,6 @@ const REPORT_TABS = [
   { value: "collection", label: "Collection" },
   { value: "discounts", label: "Discounts" },
   { value: "expenses", label: "Expenses" },
-  { value: "salary", label: "Salary" },
   { value: "inventory", label: "Inventory" },
 ] as const;
 
@@ -50,7 +48,6 @@ export function ReportsView() {
             {activeTab === "collection" && <CollectionTab />}
             {activeTab === "discounts" && <DiscountTab />}
             {activeTab === "expenses" && <ExpenseReportTab />}
-            {activeTab === "salary" && <SalaryReportTab />}
             {activeTab === "inventory" && <InventoryReportTab />}
           </motion.div>
         </AnimatePresence>

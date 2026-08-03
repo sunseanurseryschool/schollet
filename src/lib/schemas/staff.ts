@@ -17,7 +17,6 @@ export const createStaffSchema = z.object({
     .min(6, "Password must be at least 6 characters")
     .max(72, "Password must be 72 characters or fewer"),
   role_id: z.string().min(1, "Role is required"),
-  salary: z.number().min(0, "Salary must be 0 or more"),
 });
 
 export const updateStaffSchema = createStaffSchema.omit({ password: true }).partial().extend({

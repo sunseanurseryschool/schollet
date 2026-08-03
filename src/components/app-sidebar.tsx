@@ -14,7 +14,6 @@ import {
   UserCog,
   ClipboardList,
   FileText,
-  Wallet,
   AlertCircle,
 } from "lucide-react";
 import {
@@ -34,7 +33,7 @@ import { APP_NAME } from "@/lib/constants";
 import { createClient } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 
-type NavItem = { title: string; href: string; icon: typeof LayoutDashboard; permissions?: string[] };
+type NavItem = { title: string; href: string; icon: typeof LayoutDashboard; permissions?: string[]; adminOnly?: boolean };
 
 const mainNav: NavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -47,7 +46,6 @@ const mainNav: NavItem[] = [
 const financeNav: NavItem[] = [
   { title: "Accounts", href: "/dashboard/accounts", icon: BookOpen, permissions: ["CAN_MANAGE_CONFIG"] },
   { title: "Expenses", href: "/dashboard/expenses", icon: ClipboardList, permissions: ["CAN_ADD_EXPENSE"] },
-  { title: "Payroll", href: "/dashboard/payroll", icon: Wallet, permissions: ["CAN_MANAGE_STAFF"] },
   { title: "Reports", href: "/dashboard/reports", icon: BarChart3, permissions: ["CAN_VIEW_REPORTS"] },
 ];
 
@@ -56,6 +54,7 @@ const adminNav: NavItem[] = [
   { title: "Roles", href: "/dashboard/roles", icon: Settings, permissions: ["CAN_MANAGE_CONFIG"] },
   { title: "Inventory", href: "/dashboard/inventory", icon: Package, permissions: ["CAN_MANAGE_INVENTORY"] },
   { title: "Audit Log", href: "/dashboard/audit-log", icon: FileText, permissions: ["CAN_VIEW_AUDIT_LOG"] },
+  { title: "Settings", href: "/dashboard/settings", icon: Settings, adminOnly: true },
 ];
 
 interface UserInfo {
@@ -64,8 +63,9 @@ interface UserInfo {
   permissions: string[];
 }
 
-function filterNav(items: NavItem[], permissions: string[]): NavItem[] {
+function filterNav(items: NavItem[], permissions: string[], role: string): NavItem[] {
   return items.filter((item) => {
+    if (item.adminOnly) return role === "Admin";
     if (!item.permissions) return true;
     return item.permissions.some((p) => permissions.includes(p));
   });
@@ -100,9 +100,10 @@ export function AppSidebar() {
   }, []);
 
   const perms = user?.permissions ?? [];
-  const visibleMain = filterNav(mainNav, perms);
-  const visibleFinance = filterNav(financeNav, perms);
-  const visibleAdmin = filterNav(adminNav, perms);
+  const role = user?.role ?? "";
+  const visibleMain = filterNav(mainNav, perms, role);
+  const visibleFinance = filterNav(financeNav, perms, role);
+  const visibleAdmin = filterNav(adminNav, perms, role);
 
   return (
     <Sidebar className="border-r border-border-light/80 bg-surface/95 backdrop-blur-md">

@@ -101,7 +101,6 @@ const ROUTES_TO_AUDIT = [
   "/dashboard/fees/config",
   "/dashboard/accounts",
   "/dashboard/expenses",
-  "/dashboard/payroll",
   "/dashboard/reports",
   "/dashboard/staff",
   "/dashboard/roles",

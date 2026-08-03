@@ -10,7 +10,6 @@ describe("createStaffSchema", () => {
     name: "Alice Smith",
     email: "alice@school.edu",
     role_id: "some-role-id",
-    salary: 35000,
   };
 
   it("accepts valid staff input", () => {
@@ -51,20 +50,6 @@ describe("createStaffSchema", () => {
       const fields = result.error.flatten().fieldErrors;
       expect(fields.role_id).toBeDefined();
     }
-  });
-
-  it("rejects negative salary", () => {
-    const result = createStaffSchema.safeParse({ ...validInput, salary: -1 });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const fields = result.error.flatten().fieldErrors;
-      expect(fields.salary).toBeDefined();
-    }
-  });
-
-  it("accepts zero salary", () => {
-    const result = createStaffSchema.safeParse({ ...validInput, salary: 0 });
-    expect(result.success).toBe(true);
   });
 
   it("trims whitespace from name and email", () => {
@@ -118,10 +103,6 @@ describe("updateStaffSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects negative salary even in partial update", () => {
-    const result = updateStaffSchema.safeParse({ salary: -500 });
-    expect(result.success).toBe(false);
-  });
 });
 
 describe("staffListQuerySchema", () => {

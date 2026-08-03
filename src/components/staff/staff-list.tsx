@@ -12,7 +12,6 @@ import {
   MoreHorizontalIcon,
   MailIcon,
   BriefcaseIcon,
-  IndianRupeeIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import {
   DropdownMenu,
@@ -41,7 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StaffFormDialog } from "@/components/staff/staff-form-dialog";
-import { PageTransition, StaggerContainer, StaggerItem } from "@/components/ui/animated";
+import { PageTransition, StaggerContainer } from "@/components/ui/animated";
 
 interface Role {
   id: string;
@@ -53,7 +51,6 @@ interface StaffMember {
   name: string;
   email: string;
   role_id: string;
-  salary: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -160,22 +157,14 @@ function StaffCard({ member, onEdit, onActivate, onDeactivate, index }: StaffCar
         </div>
       </div>
 
-      {/* Role + Salary */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <BriefcaseIcon className="h-3.5 w-3.5 text-text-secondary" />
-          {member.role?.name ? (
-            <Badge variant="secondary" className="text-xs">{member.role.name}</Badge>
-          ) : (
-            <span className="text-xs text-text-tertiary italic">No role</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 text-sm font-semibold text-text-primary">
-          <IndianRupeeIcon className="h-3.5 w-3.5 text-text-secondary" />
-          {member.salary > 0
-            ? member.salary.toLocaleString("en-IN")
-            : <span className="text-text-tertiary font-normal text-xs">—</span>}
-        </div>
+      {/* Role */}
+      <div className="flex items-center gap-1.5">
+        <BriefcaseIcon className="h-3.5 w-3.5 text-text-secondary" />
+        {member.role?.name ? (
+          <Badge variant="secondary" className="text-xs">{member.role.name}</Badge>
+        ) : (
+          <span className="text-xs text-text-tertiary italic">No role</span>
+        )}
       </div>
     </motion.div>
   );

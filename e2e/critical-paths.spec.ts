@@ -24,7 +24,6 @@ test.describe("Sidebar visibility (Admin)", () => {
       "Fee Config",
       "Accounts",
       "Expenses",
-      "Payroll",
       "Reports",
       "Staff",
       "Roles",
@@ -72,6 +71,10 @@ test.describe("Student create flow", () => {
     // Section
     await dialog.locator("#section").click();
     await page.getByRole("option", { name: "A" }).click();
+
+    // Fee structure (required — options load for the selected grade)
+    await dialog.locator("#fee_config_id").click();
+    await page.getByRole("option").first().click();
 
     // Add some father info so the list row has a parent
     await dialog.locator("#father_name").fill(`Father ${stamp}`);

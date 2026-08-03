@@ -165,7 +165,6 @@ export async function PUT(
         name: existing.data.name,
         email: existing.data.email,
         role_id: existing.data.role_id,
-        salary: existing.data.salary,
       },
     });
 

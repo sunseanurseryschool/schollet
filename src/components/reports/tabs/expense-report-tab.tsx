@@ -175,7 +175,7 @@ export function ExpenseReportTab() {
               Expense Breakdown
             </h3>
             <p className="text-xs text-text-secondary">
-              Where the money went, by category (Salary included).
+              Where the money went, by category.
             </p>
           </div>
           {breakdown && breakdown.length > 0 && (

@@ -34,7 +34,6 @@ describe("auditLogListQuerySchema", () => {
       "fee_transaction",
       "expense",
       "account",
-      "salary_payment",
       "staff",
       "role",
       "inventory_item",

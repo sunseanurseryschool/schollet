@@ -67,7 +67,7 @@ export interface DiscountRow {
 // ─── Service functions ────────────────────────────────────────────────────────
 
 async function sumColumn(
-  table: "fee_transactions" | "expenses" | "salary_payments",
+  table: "fee_transactions" | "expenses",
   column: "paid_amount" | "amount",
   dateColumn: "payment_date" | "date",
   dateFrom: string,
@@ -89,7 +89,7 @@ async function sumColumn(
 
 /**
  * Income = sum of fee_transactions.paid_amount in range.
- * Expense = sum of expenses.amount + salary_payments.amount in range.
+ * Expense = sum of expenses.amount in range.
  */
 export async function getIncomeVsExpense(
   dateFrom: string,
@@ -114,17 +114,8 @@ export async function getIncomeVsExpense(
     );
     if (typeof expenseRes === "object") return { data: null, error: expenseRes.error };
 
-    const salaryRes = await sumColumn(
-      "salary_payments",
-      "amount",
-      "payment_date",
-      dateFrom,
-      dateTo
-    );
-    if (typeof salaryRes === "object") return { data: null, error: salaryRes.error };
-
     const totalIncome = Math.round(incomeRes * 100) / 100;
-    const totalExpense = Math.round((expenseRes + salaryRes) * 100) / 100;
+    const totalExpense = Math.round(expenseRes * 100) / 100;
 
     return {
       data: {
@@ -171,7 +162,7 @@ export interface MonthlyTrendPoint {
 /**
  * Returns one bucket per calendar month between `dateFrom` and `dateTo`
  * (inclusive). Each bucket holds the sum of fees collected, expenses incurred,
- * salaries paid, and the net (income − expense) for that month.
+ * and the net (income − expense) for that month.
  *
  * Both dates are ISO YYYY-MM-DD. The full month each date lands in is included
  * in the result (the first bucket starts on the 1st of dateFrom's month;
@@ -192,7 +183,7 @@ export async function getMonthlyTrend(
     const startISO = `${startOfRange.getFullYear()}-${String(startOfRange.getMonth() + 1).padStart(2, "0")}-01`;
     const endISO = `${endOfRange.getFullYear()}-${String(endOfRange.getMonth() + 1).padStart(2, "0")}-${String(endOfRange.getDate()).padStart(2, "0")}`;
 
-    const [feesRes, expensesRes, salariesRes] = await Promise.all([
+    const [feesRes, expensesRes] = await Promise.all([
       supabase
         .from("fee_transactions")
         .select("payment_date, paid_amount")
@@ -203,16 +194,10 @@ export async function getMonthlyTrend(
         .select("date, amount")
         .gte("date", startISO)
         .lte("date", endISO),
-      supabase
-        .from("salary_payments")
-        .select("payment_date, amount")
-        .gte("payment_date", startISO)
-        .lte("payment_date", endISO),
     ]);
 
     if (feesRes.error) return { data: null, error: feesRes.error.message };
     if (expensesRes.error) return { data: null, error: expensesRes.error.message };
-    if (salariesRes.error) return { data: null, error: salariesRes.error.message };
 
     const monthKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -250,11 +235,6 @@ export async function getMonthlyTrend(
       const b = buckets.get(k);
       if (b) b.expense += Number(row.amount);
     }
-    for (const row of salariesRes.data ?? []) {
-      const k = keyFromISODate(row.payment_date as string);
-      const b = buckets.get(k);
-      if (b) b.expense += Number(row.amount);
-    }
 
     const trend: MonthlyTrendPoint[] = Array.from(buckets.entries()).map(
       ([month, b]) => {
@@ -286,9 +266,8 @@ export interface ExpenseBreakdownLine {
 }
 
 /**
- * Expense breakdown for the selected range:
- *   - "Salary" → sum of salary_payments.amount
- *   - everything else → sum of expenses.amount grouped by expenses.category
+ * Expense breakdown for the selected range: sum of expenses.amount grouped
+ * by expenses.category.
  *
  * Returns categories sorted by amount descending.
  */
@@ -299,35 +278,19 @@ export async function getExpenseBreakdown(
   try {
     const supabase = await createClient();
 
-    const [expensesRes, salariesRes] = await Promise.all([
-      supabase
-        .from("expenses")
-        .select("category, amount")
-        .gte("date", dateFrom)
-        .lte("date", dateTo),
-      supabase
-        .from("salary_payments")
-        .select("amount")
-        .gte("payment_date", dateFrom)
-        .lte("payment_date", dateTo),
-    ]);
+    const expensesRes = await supabase
+      .from("expenses")
+      .select("category, amount")
+      .gte("date", dateFrom)
+      .lte("date", dateTo);
 
     if (expensesRes.error)
       return { data: null, error: expensesRes.error.message };
-    if (salariesRes.error)
-      return { data: null, error: salariesRes.error.message };
 
     const totals = new Map<string, number>();
     for (const row of expensesRes.data ?? []) {
       const cat = String(row.category);
       totals.set(cat, (totals.get(cat) ?? 0) + Number(row.amount));
-    }
-    const salaryTotal = (salariesRes.data ?? []).reduce(
-      (sum, row) => sum + Number(row.amount),
-      0
-    );
-    if (salaryTotal > 0) {
-      totals.set("Salary", (totals.get("Salary") ?? 0) + salaryTotal);
     }
 
     const grandTotal = Array.from(totals.values()).reduce((s, v) => s + v, 0);
@@ -549,7 +512,7 @@ export async function getDetailedDuesReport(
 
     let studentBuilder = supabase
       .from("students")
-      .select("id, admission_no, name, grade, section")
+      .select("id, admission_no, name, grade, section, fee_config_id")
       .eq("status", "active")
       .order("grade")
       .order("name");
@@ -611,12 +574,15 @@ export async function getDetailedDuesReport(
       return { data: null, error: feeConfigError.message };
     }
 
-    // Map grade → total_fee from config
+    // Map config id → total_fee (per-student assignment) and
+    // grade → total_fee (fallback for students without an assignment)
+    const configToFee = new Map<string, number>();
     const gradeToFee = new Map<string, number>();
-    const gradeToConfigId = new Map<string, string>();
     for (const fc of (feeConfigs ?? []) as Array<{ id: string; grade: string; total_fee: number }>) {
-      gradeToFee.set(fc.grade, Number(fc.total_fee));
-      gradeToConfigId.set(fc.grade, fc.id);
+      configToFee.set(fc.id, Number(fc.total_fee));
+      if (!gradeToFee.has(fc.grade)) {
+        gradeToFee.set(fc.grade, Number(fc.total_fee));
+      }
     }
 
     // Get actual config IDs for filtering transactions
@@ -685,11 +651,18 @@ export async function getDetailedDuesReport(
         name: string;
         grade: Grade;
         section: Section;
+        fee_config_id: string | null;
       }>
     )
       .map((s) => {
-        // Get the total fee from the fee config for this student's grade
-        const totalFee = Math.round((gradeToFee.get(s.grade) ?? 0) * 100) / 100;
+        // Use the student's assigned fee structure; fall back to the
+        // grade-level config for students without an assignment
+        const totalFee =
+          Math.round(
+            ((s.fee_config_id ? configToFee.get(s.fee_config_id) : undefined) ??
+              gradeToFee.get(s.grade) ??
+              0) * 100
+          ) / 100;
         const agg = txMap.get(s.id) ?? {
           paid: 0,
           discount: 0,
@@ -935,92 +908,6 @@ export async function getExpenseReport(
         description: row.description as string,
         amount: Math.round(Number(row.amount) * 100) / 100,
         paid_by_name: staff?.name ?? "Unknown",
-      };
-    });
-
-    const total = rows.reduce((sum, r) => sum + r.amount, 0);
-
-    return {
-      data: {
-        rows,
-        total: Math.round(total * 100) / 100,
-      },
-      error: null,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return { data: null, error: message };
-  }
-}
-
-// ─── RPT-007: Salary Report ───────────────────────────────────────────────────
-
-export interface SalaryReportRow {
-  id: string;
-  staff_id: string;
-  staff_name: string;
-  month: string;
-  amount: number;
-  payment_date: string;
-  notes: string | null;
-}
-
-export interface SalaryReportResult {
-  rows: SalaryReportRow[];
-  total: number;
-}
-
-/**
- * Returns salary payments, optionally filtered by month (YYYY-MM).
- * Joins staff table for staff name.
- */
-export async function getSalaryReport(
-  month?: string
-): Promise<ServiceResult<SalaryReportResult>> {
-  try {
-    const supabase = await createClient();
-
-    let builder = supabase
-      .from("salary_payments")
-      .select("id, staff_id, amount, month, payment_date, notes, staff(name)")
-      .order("payment_date", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    if (month) {
-      builder = builder.eq("month", month);
-    }
-
-    const { data, error } = await builder;
-
-    if (error) {
-      return { data: null, error: error.message };
-    }
-
-    type SalaryRowShape = {
-      id: unknown;
-      staff_id: unknown;
-      amount: unknown;
-      month: unknown;
-      payment_date: unknown;
-      notes: unknown;
-      staff: unknown;
-    };
-
-    const rows: SalaryReportRow[] = (data ?? []).map((rawRow) => {
-      const row = rawRow as unknown as SalaryRowShape;
-      const staffRaw = row.staff;
-      const staff = Array.isArray(staffRaw)
-        ? (staffRaw[0] as { name: string } | undefined) ?? null
-        : (staffRaw as { name: string } | null);
-
-      return {
-        id: row.id as string,
-        staff_id: row.staff_id as string,
-        staff_name: staff?.name ?? "Unknown",
-        month: row.month as string,
-        amount: Math.round(Number(row.amount) * 100) / 100,
-        payment_date: row.payment_date as string,
-        notes: (row.notes as string | null) ?? null,
       };
     });
 

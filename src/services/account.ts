@@ -15,7 +15,6 @@ export interface ServiceResult<T> {
 const REFERENCING_TABLES = [
   "fee_transactions",
   "expenses",
-  "salary_payments",
   "inventory_transactions",
   "account_adjustments",
 ] as const;
@@ -30,19 +29,17 @@ export async function listAccounts(): Promise<
   try {
     const supabase = await createClient();
 
-    const [accountsRes, feesRes, expensesRes, salariesRes, adjustmentsRes] =
+    const [accountsRes, feesRes, expensesRes, adjustmentsRes] =
       await Promise.all([
         supabase.from("accounts").select("*").order("name", { ascending: true }),
         supabase.from("fee_transactions").select("account_id, paid_amount"),
         supabase.from("expenses").select("account_id, amount"),
-        supabase.from("salary_payments").select("account_id, amount"),
         supabase.from("account_adjustments").select("account_id, amount"),
       ]);
 
     if (accountsRes.error) return { data: null, error: accountsRes.error.message };
     if (feesRes.error) return { data: null, error: feesRes.error.message };
     if (expensesRes.error) return { data: null, error: expensesRes.error.message };
-    if (salariesRes.error) return { data: null, error: salariesRes.error.message };
     if (adjustmentsRes.error)
       return { data: null, error: adjustmentsRes.error.message };
 
@@ -52,10 +49,6 @@ export async function listAccounts(): Promise<
       balances.set(id, (balances.get(id) ?? 0) + Number(row.paid_amount));
     }
     for (const row of expensesRes.data ?? []) {
-      const id = row.account_id as string;
-      balances.set(id, (balances.get(id) ?? 0) - Number(row.amount));
-    }
-    for (const row of salariesRes.data ?? []) {
       const id = row.account_id as string;
       balances.set(id, (balances.get(id) ?? 0) - Number(row.amount));
     }

@@ -6,13 +6,13 @@ export const AUDIT_ACTION_VALUES = [
   "DELETE",
   "DEACTIVATE",
   "FEE_COLLECT",
-  "PROCESS_SALARY",
   "CREATE_ACCOUNT",
   "UPDATE_ACCOUNT",
   "DELETE_ACCOUNT",
   "ADJUST_ACCOUNT",
   "INVENTORY_IN",
   "INVENTORY_OUT",
+  "EXPORT",
 ] as const;
 
 export const AUDIT_ENTITY_VALUES = [
@@ -21,11 +21,11 @@ export const AUDIT_ENTITY_VALUES = [
   "fee_transaction",
   "expense",
   "account",
-  "salary_payment",
   "staff",
   "role",
   "inventory_item",
   "inventory_transaction",
+  "system",
 ] as const;
 
 export const auditLogListQuerySchema = z.object({

@@ -28,7 +28,7 @@ export interface DashboardStats {
  * - todayCollection: sum of fee_transactions.paid_amount where payment_date = today
  * - totalActiveStudents: count of students where status = 'active'
  * - monthlyIncome: sum of fee_transactions.paid_amount for the current month
- * - monthlyExpense: sum of expenses.amount + salary_payments.amount for the current month
+ * - monthlyExpense: sum of expenses.amount for the current month
  * - pendingDues: sum of (total_fee - paid_amount - discount_amount) across active students
  * - recentTransactions: last 5 fee_transactions with student name
  */
@@ -105,27 +105,12 @@ export async function getDashboardStats(): Promise<
       return { data: null, error: monthlyExpenseError.message };
     }
 
-    const { data: monthlySalaryRows, error: monthlySalaryError } = await supabase
-      .from("salary_payments")
-      .select("amount")
-      .gte("payment_date", monthStart)
-      .lte("payment_date", monthEnd);
-
-    if (monthlySalaryError) {
-      return { data: null, error: monthlySalaryError.message };
-    }
-
     const monthlyExpense =
       Math.round(
-        ((monthlyExpenseRows ?? []).reduce(
+        (monthlyExpenseRows ?? []).reduce(
           (sum, row) => sum + Number(row.amount),
           0
-        ) +
-          (monthlySalaryRows ?? []).reduce(
-            (sum, row) => sum + Number(row.amount),
-            0
-          )) *
-          100
+        ) * 100
       ) / 100;
 
     // ── 4. Pending dues across all active students ────────────────────────────

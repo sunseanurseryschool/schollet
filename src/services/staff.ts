@@ -12,7 +12,6 @@ export interface StaffMember {
   name: string;
   email: string;
   role_id: string;
-  salary: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -124,7 +123,6 @@ export async function createStaff(
         name: input.name,
         email: input.email,
         role_id: input.role_id,
-        salary: input.salary,
         is_active: true,
         ...(userId ? { user_id: userId } : {}),
       })

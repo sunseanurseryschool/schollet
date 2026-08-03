@@ -127,7 +127,7 @@ export function AccountsView() {
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <p className="text-sm text-text-secondary">
-            Manage the accounts where your school receives fees and pays expenses, salaries, and purchases.
+            Manage the accounts where your school receives fees and pays expenses and purchases.
           </p>
           <motion.div
             whileHover={{ scale: 1.03 }}
@@ -290,7 +290,7 @@ export function AccountsView() {
               </p>
               <p className="text-xs text-text-secondary">
                 This action cannot be undone. Accounts that have fee, expense,
-                salary, or inventory entries against them cannot be deleted.
+                or inventory entries against them cannot be deleted.
               </p>
             </div>
             <DialogFooter>

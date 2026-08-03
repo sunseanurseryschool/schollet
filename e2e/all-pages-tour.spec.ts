@@ -73,30 +73,6 @@ test.describe("Expenses page", () => {
   });
 });
 
-test.describe("Payroll page", () => {
-  test("/dashboard/payroll — open Process All dialog → cancel", async ({
-    page,
-  }) => {
-    await page.goto("/dashboard/payroll");
-    await expect(
-      page.getByRole("heading", { name: "Payroll", exact: true }),
-    ).toBeVisible();
-
-    // "Process All (N unpaid)" — open if any unpaid staff exist
-    const processAll = page.getByRole("button", { name: /Process All/ });
-    if ((await processAll.count()) > 0 && (await processAll.isEnabled())) {
-      await processAll.click();
-      const dialog = page.getByRole("dialog");
-      await expect(dialog).toBeVisible();
-      await expect(dialog.getByText(/Process All Salaries/)).toBeVisible();
-      // Account picker is present
-      await expect(dialog.locator("#bulk-account")).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(dialog).not.toBeVisible();
-    }
-  });
-});
-
 test.describe("Reports page", () => {
   test("/dashboard/reports — Income vs Expense tab renders net summary", async ({
     page,

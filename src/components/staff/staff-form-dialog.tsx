@@ -21,7 +21,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { createStaffSchema, updateStaffSchema, type CreateStaffInput } from "@/lib/schemas/staff";
 
@@ -35,7 +34,6 @@ interface StaffMember {
   name: string;
   email: string;
   role_id: string;
-  salary: number;
   is_active: boolean;
 }
 
@@ -80,14 +78,14 @@ export function StaffFormDialog({
     formState: { errors },
   } = useForm<CreateStaffInput>({
     resolver: zodResolver(isEditing ? updateStaffSchema as unknown as typeof createStaffSchema : createStaffSchema),
-    defaultValues: { name: "", email: "", password: "", role_id: "", salary: 0 },
+    defaultValues: { name: "", email: "", password: "", role_id: "" },
   });
 
   React.useEffect(() => {
     if (open && staff) {
-      reset({ name: staff.name, email: staff.email, password: "", role_id: staff.role_id, salary: staff.salary });
+      reset({ name: staff.name, email: staff.email, password: "", role_id: staff.role_id });
     } else if (open && !staff) {
-      reset({ name: "", email: "", password: "", role_id: "", salary: 0 });
+      reset({ name: "", email: "", password: "", role_id: "" });
     }
   }, [open, staff, reset]);
 
@@ -242,28 +240,6 @@ export function StaffFormDialog({
               )}
             </motion.div>
 
-            {/* Salary */}
-            <motion.div
-              custom={3}
-              variants={fieldVariants}
-              initial="hidden"
-              animate={open ? "visible" : "hidden"}
-              className="grid gap-1.5"
-            >
-              <Label htmlFor="staff-salary">Salary (₹) per month</Label>
-              <Input
-                id="staff-salary"
-                type="number"
-                min={0}
-                step={0.01}
-                placeholder="0"
-                aria-invalid={!!errors.salary}
-                {...register("salary", { valueAsNumber: true })}
-              />
-              {errors.salary && (
-                <p className="text-xs text-destructive">{errors.salary.message}</p>
-              )}
-            </motion.div>
           </div>
 
           <DialogFooter showCloseButton>
