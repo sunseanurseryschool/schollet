@@ -10,12 +10,14 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/dashboard/fees/receipt": ["CAN_COLLECT_FEES"],
   "/dashboard/accounts": ["CAN_MANAGE_CONFIG"],
   "/dashboard/expenses": ["CAN_ADD_EXPENSE"],
-  "/dashboard/payroll": ["CAN_MANAGE_STAFF"],
   "/dashboard/reports": ["CAN_VIEW_REPORTS"],
   "/dashboard/staff": ["CAN_MANAGE_STAFF"],
   "/dashboard/roles": ["CAN_MANAGE_CONFIG"],
   "/dashboard/inventory": ["CAN_MANAGE_INVENTORY"],
   "/dashboard/audit-log": ["CAN_VIEW_AUDIT_LOG"],
+  // ADMIN_ONLY is a sentinel no role has; only the Admin role (which
+  // bypasses permission checks) can reach these routes.
+  "/dashboard/settings": ["ADMIN_ONLY"],
 };
 
 function getRequiredPermissions(pathname: string): string[] | null {
@@ -60,11 +62,14 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users to login
+  // Redirect unauthenticated users to login.
+  // /api/cron/* is excluded — those routes have no browser session and
+  // enforce their own CRON_SECRET bearer check instead.
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    !request.nextUrl.pathname.startsWith("/api/cron")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
