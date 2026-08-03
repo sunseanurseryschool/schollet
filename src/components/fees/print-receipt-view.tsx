@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReceiptData } from "@/app/api/fees/receipt/[receiptNo]/route";
+import type { Branding } from "@/lib/schemas/settings";
 import { formatINR } from "@/lib/format";
 import { ArrowLeftIcon, PrinterIcon, CheckCircle2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,17 @@ function formatDate(dateStr: string): string {
   });
 }
 
-export function PrintReceiptView({ receipt }: { receipt: ReceiptData }) {
+export function PrintReceiptView({
+  receipt,
+  branding,
+}: {
+  receipt: ReceiptData;
+  branding: Branding;
+}) {
   const router = useRouter();
+  const contactLine = [branding.address, branding.phone]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <>
@@ -103,15 +113,18 @@ export function PrintReceiptView({ receipt }: { receipt: ReceiptData }) {
           >
             <span
               style={{
-                fontSize: "6rem",
+                fontSize: "3.5rem",
+                lineHeight: 1.15,
                 fontWeight: 800,
                 color: "rgba(37,99,235,0.04)",
                 transform: "rotate(-30deg)",
                 letterSpacing: "0.08em",
                 userSelect: "none",
+                textAlign: "center",
+                padding: "0 2rem",
               }}
             >
-              SCHOLLET
+              {branding.school_name.toUpperCase()}
             </span>
           </div>
 
@@ -133,10 +146,23 @@ export function PrintReceiptView({ receipt }: { receipt: ReceiptData }) {
               transition={{ delay: 0.15, duration: 0.4 }}
               className="relative"
             >
-              <h1 className="text-2xl font-bold tracking-widest">SCHOLLET</h1>
-              <p className="text-sm text-blue-200 mt-1">
-                School Finance Management System
-              </p>
+              {branding.logo_data_url && (
+                // eslint-disable-next-line @next/next/no-img-element -- data URL from settings
+                <img
+                  src={branding.logo_data_url}
+                  alt={`${branding.school_name} logo`}
+                  className="mx-auto mb-3 h-16 w-16 rounded-lg bg-white object-contain p-1"
+                />
+              )}
+              <h1 className="text-2xl font-bold tracking-wide uppercase">
+                {branding.school_name}
+              </h1>
+              {branding.tagline && (
+                <p className="text-sm text-blue-200 mt-1">{branding.tagline}</p>
+              )}
+              {contactLine && (
+                <p className="text-xs text-blue-200/80 mt-1">{contactLine}</p>
+              )}
               <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 border border-white/20 px-3 py-1 text-xs font-medium text-blue-100">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
                 Official Fee Receipt
@@ -333,7 +359,7 @@ export function PrintReceiptView({ receipt }: { receipt: ReceiptData }) {
               signature.
             </p>
             <p className="mt-1 text-xs text-text-tertiary/60">
-              Schollet &mdash; School Finance Management System
+              {branding.school_name} &mdash; Powered by Schollet
             </p>
           </motion.div>
         </motion.div>

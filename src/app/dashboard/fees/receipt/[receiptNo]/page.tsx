@@ -31,6 +31,7 @@ export default async function ReceiptPage(props: {
   // Fetch receipt data from the API layer via service (server-side, no HTTP round-trip)
   const { getStudentById } = await import("@/services/student");
   const { getFeeConfigById } = await import("@/services/fee-config");
+  const { getBranding } = await import("@/services/settings");
 
   const { data: txData } = await supabase
     .from("fee_transactions")
@@ -42,9 +43,10 @@ export default async function ReceiptPage(props: {
     notFound();
   }
 
-  const [studentResult, configResult] = await Promise.all([
+  const [studentResult, configResult, branding] = await Promise.all([
     getStudentById(txData.student_id as string),
     getFeeConfigById(txData.fee_config_id as string),
+    getBranding(),
   ]);
 
   if (!studentResult.data || !configResult.data) {
@@ -118,5 +120,5 @@ export default async function ReceiptPage(props: {
     received_by_name: receivedByName,
   };
 
-  return <PrintReceiptView receipt={receipt} />;
+  return <PrintReceiptView receipt={receipt} branding={branding} />;
 }
