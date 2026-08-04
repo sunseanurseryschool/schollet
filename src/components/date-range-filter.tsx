@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { todayParts } from "@/lib/dates";
 
 export interface DateRangeFilterProps {
   dateFrom: string;
@@ -21,7 +22,10 @@ function toISODate(d: Date): string {
 type Preset = "today" | "this_week" | "this_month" | "this_year";
 
 function resolvePreset(preset: Preset): { from: string; to: string } {
-  const now = new Date();
+  // Anchor "now" to the school's calendar date so presets are correct even
+  // if the device clock is set to another timezone.
+  const { year, month, day } = todayParts();
+  const now = new Date(year, month - 1, day);
 
   switch (preset) {
     case "today": {

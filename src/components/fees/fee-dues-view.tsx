@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/animated";
 import { GRADES, SECTIONS } from "@/lib/constants";
 import type { DetailedDuesRow, DuesSummary } from "@/services/reports";
+import { todayParts } from "@/lib/dates";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,10 +53,8 @@ function formatDate(dateStr: string | null): string {
 }
 
 function getCurrentAcademicYear(): string {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const startYear = month >= 5 ? year : year - 1;
+  const { year, month } = todayParts();
+  const startYear = month >= 6 ? year : year - 1;
   return `${startYear}-${startYear + 1}`;
 }
 

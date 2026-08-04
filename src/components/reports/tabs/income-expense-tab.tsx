@@ -1,6 +1,7 @@
 "use client";
 
 import { formatINR } from "@/lib/format";
+import { todayParts } from "@/lib/dates";
 import * as React from "react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -66,9 +67,9 @@ function isoDate(d: Date): string {
 }
 
 function rangeForPreset(preset: TrendPreset): { from: string; to: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
+  // Anchor to the school's calendar date, not the device clock.
+  const { year: y, month } = todayParts();
+  const m = month - 1;
   switch (preset) {
     case "last-3-months": {
       const start = new Date(y, m - 2, 1);

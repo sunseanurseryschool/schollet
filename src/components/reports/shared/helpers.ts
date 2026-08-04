@@ -1,3 +1,5 @@
+import { todayParts } from "@/lib/dates";
+
 export function formatDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-IN", {
@@ -8,19 +10,18 @@ export function formatDate(dateStr: string): string {
 }
 
 export function currentMonthRange(): { from: string; to: string } {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const { year, month } = todayParts();
+  const m = String(month).padStart(2, "0");
+  const lastDay = new Date(year, month, 0).getDate();
   return {
-    from: `${y}-${m}-01`,
-    to: `${y}-${m}-${String(lastDay).padStart(2, "0")}`,
+    from: `${year}-${m}-01`,
+    to: `${year}-${m}-${String(lastDay).padStart(2, "0")}`,
   };
 }
 
 export function currentYearMonth(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const { year, month } = todayParts();
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 export function compactINR(value: number): string {

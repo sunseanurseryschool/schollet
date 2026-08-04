@@ -3,6 +3,7 @@ import { logAudit } from "@/lib/audit";
 import type { FeeTransaction } from "@/types/database";
 import type { ServiceResult } from "@/services/student";
 import type { CollectFeeInput } from "@/lib/schemas/fee-transaction";
+import { todayISO, todayParts } from "@/lib/dates";
 
 export interface CollectFeeOutput {
   transaction: FeeTransaction;
@@ -28,7 +29,7 @@ export interface FeeTransactionWithStudent extends FeeTransaction {
 export async function generateReceiptNo(): Promise<ServiceResult<string>> {
   try {
     const supabase = await createClient();
-    const year = new Date().getFullYear();
+    const year = todayParts().year;
     const prefix = `REC-${year}-`;
 
     const { data, error } = await supabase
@@ -131,8 +132,7 @@ export async function collectFee(
     }
     const receiptNo = receiptResult.data;
 
-    const paymentDate =
-      input.payment_date ?? new Date().toISOString().slice(0, 10);
+    const paymentDate = input.payment_date ?? todayISO();
 
     // 4. Resolve staff ID from auth user ID
     const { data: staffRecord } = await supabase

@@ -6,6 +6,7 @@ import {
   type UpdateStudentInput,
   type StudentListQuery,
 } from "@/lib/schemas/student";
+import { todayParts } from "@/lib/dates";
 
 export interface StudentListResult {
   students: Student[];
@@ -107,7 +108,7 @@ export async function createStudent(
     // Auto-generate admission number if not provided
     let admissionNo = input.admission_no?.trim() || "";
     if (!admissionNo) {
-      const year = new Date().getFullYear();
+      const year = todayParts().year;
       const prefix = `ADM-${year}-`;
       const { data: last } = await supabase
         .from("students")

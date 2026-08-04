@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { ServiceResult } from "@/services/student";
 import type { Grade, Section } from "@/types/database";
 import type { ExpenseCategory } from "@/lib/schemas/expense";
+import { todayParts } from "@/lib/dates";
 
 // ─── Report result types ──────────────────────────────────────────────────────
 
@@ -564,8 +565,8 @@ export async function getDetailedDuesReport(
       feeConfigBuilder = feeConfigBuilder.eq("academic_year", academic_year);
     } else {
       // Default: current academic year
-      const now = new Date();
-      const yr = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+      const { year, month } = todayParts();
+      const yr = month >= 4 ? year : year - 1;
       feeConfigBuilder = feeConfigBuilder.eq("academic_year", `${yr}-${yr + 1}`);
     }
 

@@ -49,6 +49,7 @@ import {
 import type { Student, FeeTransaction, Account } from "@/types/database";
 import type { FeeConfigWithHeads } from "@/services/fee-config";
 import type { FeeSummary, CollectFeeOutput } from "@/services/fee-transaction";
+import { todayISO, todayParts } from "@/lib/dates";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -62,16 +63,14 @@ function formatDate(dateStr: string): string {
 }
 
 const CURRENT_ACADEMIC_YEAR: string = (() => {
-  const now = new Date();
-  const month = now.getMonth();
-  const year = now.getFullYear();
-  const startYear = month >= 5 ? year : year - 1;
+  const { year, month } = todayParts();
+  const startYear = month >= 6 ? year : year - 1;
   return `${startYear}-${startYear + 1}`;
 })();
 
 const ACADEMIC_YEAR_OPTIONS: readonly string[] = (() => {
   const [currentStart] = CURRENT_ACADEMIC_YEAR.split("-").map(Number);
-  const start = currentStart ?? new Date().getFullYear();
+  const start = currentStart ?? todayParts().year;
   return [
     `${start + 1}-${start + 2}`,
     `${start}-${start + 1}`,
@@ -947,7 +946,7 @@ export function FeeCollectForm() {
                         <Input
                           id="payment_date"
                           type="date"
-                          defaultValue={new Date().toISOString().slice(0, 10)}
+                          defaultValue={todayISO()}
                           className="h-11 transition-all focus-visible:ring-brand/30 focus-visible:border-brand"
                           {...register("payment_date")}
                         />

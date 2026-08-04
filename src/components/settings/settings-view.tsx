@@ -18,6 +18,7 @@ import {
   MAX_LOGO_DATA_URL_LENGTH,
   type Branding,
 } from "@/lib/schemas/settings";
+import { todayISO } from "@/lib/dates";
 
 interface ExportMeta {
   table_count: number;
@@ -128,7 +129,7 @@ export function SettingsView() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `schollet-export-${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `schollet-export-${todayISO()}.json`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

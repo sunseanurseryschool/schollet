@@ -70,11 +70,12 @@ import {
   type CreateInventoryTransactionInput,
 } from "@/lib/schemas/inventory";
 import type { InventoryItem, InventoryTransaction } from "@/types/database";
+import { todayISO } from "@/lib/dates";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayISO();
 }
 
 function isLowStock(item: InventoryItem): boolean {

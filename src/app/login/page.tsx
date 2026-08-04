@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Label } from "@/components/ui/label";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { todayParts } from "@/lib/dates";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 
 // ─── Decorative floating shape ───────────────────────────────────────────────
@@ -322,7 +323,7 @@ export default function LoginPage() {
           </div>
 
           <p className="mt-6 text-center text-xs text-text-tertiary">
-            {APP_NAME} &copy; {new Date().getFullYear()} &middot; School Finance
+            {APP_NAME} &copy; {todayParts().year} &middot; School Finance
           </p>
         </motion.div>
       </div>

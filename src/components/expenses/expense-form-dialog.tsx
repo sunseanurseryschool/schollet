@@ -29,6 +29,7 @@ import {
   type ExpenseCategory,
 } from "@/lib/schemas/expense";
 import { useAccounts } from "@/hooks/use-accounts";
+import { todayISO } from "@/lib/dates";
 
 interface ExpenseFormDialogProps {
   open: boolean;
@@ -82,7 +83,7 @@ export function ExpenseFormDialog({
       amount: undefined,
       category: undefined,
       description: "",
-      date: new Date().toISOString().slice(0, 10),
+      date: todayISO(),
     },
   });
 
@@ -93,7 +94,7 @@ export function ExpenseFormDialog({
         amount: undefined,
         category: undefined,
         description: "",
-        date: new Date().toISOString().slice(0, 10),
+        date: todayISO(),
       });
     }
   }, [open, reset]);

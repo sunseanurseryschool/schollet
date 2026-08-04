@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { ServiceResult } from "@/services/student";
+import { todayISO, todayParts } from "@/lib/dates";
 
 // ─── Result types ─────────────────────────────────────────────────────────────
 
@@ -38,15 +39,14 @@ export async function getDashboardStats(): Promise<
   try {
     const supabase = await createClient();
 
-    // ── Derive date boundaries ────────────────────────────────────────────────
-    const now = new Date();
-    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+    // ── Derive date boundaries (school timezone, not server timezone) ────────
+    const todayStr = todayISO(); // YYYY-MM-DD
 
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const { year, month: monthNum } = todayParts();
+    const month = String(monthNum).padStart(2, "0");
     const monthStart = `${year}-${month}-01`;
     // Last day of current month
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+    const lastDay = new Date(year, monthNum, 0).getDate();
     const monthEnd = `${year}-${month}-${String(lastDay).padStart(2, "0")}`;
 
     // ── 1. Today's collection ─────────────────────────────────────────────────

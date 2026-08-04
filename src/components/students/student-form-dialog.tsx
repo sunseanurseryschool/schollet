@@ -33,6 +33,7 @@ import { GRADES, SECTIONS } from "@/lib/constants";
 import { formatINR } from "@/lib/format";
 import type { Student } from "@/types/database";
 import type { FeeConfigWithHeads } from "@/services/fee-config";
+import { todayParts } from "@/lib/dates";
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
@@ -162,18 +163,18 @@ function fromStudent(student: Student): CreateStudentInput {
 
 function computeAge(dob: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) return "";
-  const birth = new Date(dob);
-  if (Number.isNaN(birth.getTime())) return "";
-  const today = new Date();
-  let years = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) years--;
+  const [birthYear, birthMonth, birthDay] = dob.split("-").map(Number);
+  if (!birthYear || !birthMonth || !birthDay) return "";
+  const today = todayParts();
+  let years = today.year - birthYear;
+  const m = today.month - birthMonth;
+  if (m < 0 || (m === 0 && today.day < birthDay)) years--;
   if (years < 0) return "";
   if (years === 0) {
     const months =
-      (today.getFullYear() - birth.getFullYear()) * 12 +
-      (today.getMonth() - birth.getMonth()) -
-      (today.getDate() < birth.getDate() ? 1 : 0);
+      (today.year - birthYear) * 12 +
+      (today.month - birthMonth) -
+      (today.day < birthDay ? 1 : 0);
     return `${Math.max(0, months)} months`;
   }
   return `${years} years`;

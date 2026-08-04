@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { buildFullExport } from "@/lib/backup";
+import { todayISO } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export async function GET(): Promise<NextResponse> {
       failed_tables: Object.keys(payload.meta.errors ?? {}),
     });
 
-    const filename = `schollet-export-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `schollet-export-${todayISO()}.json`;
     return new NextResponse(JSON.stringify(payload), {
       status: 200,
       headers: {
